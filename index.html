@@ -1039,23 +1039,17 @@ function watchAdAndRespawn() {
   btn.disabled = true;
   btn.textContent = 'LOADING AD...';
 
-  if (window.TTMinis && TTMinis.game.showRewardedAd) {
-    // ── REAL TIKTOK REWARDED AD ──
+  if (window.TTMinis && typeof TTMinis.game !== 'undefined' && TTMinis.game.showRewardedAd) {
+    // ── REAL TIKTOK REWARDED AD (only runs inside TikTok app) ──
     TTMinis.game.showRewardedAd({
       adUnitId: AD_UNIT_ID,
-      success: () => {
-        // Ad watched successfully — give the reward
-        continueGame();
-      },
-      fail: (err) => {
-        console.warn('Ad failed or was skipped:', err);
-        // Still let them respawn if ad fails (good UX)
-        continueGame();
-      }
+      success: () => { continueGame(); },
+      fail: (err) => { console.warn('Ad failed:', err); continueGame(); }
     });
   } else {
-    // ── BROWSER FALLBACK (mock 5-second ad for local testing) ──
-    showMockAd();
+    // ── BROWSER / GITHUB PAGES FALLBACK — instant respawn ──
+    // No real ad available outside TikTok, just continue
+    continueGame();
   }
 }
 
