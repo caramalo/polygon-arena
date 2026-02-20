@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Polygon Arena</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Press Start 2P', 'Courier New', monospace;
+  }
+  #game-container {
+    position: relative;
+    width: 480px;
+    height: 720px;
+  }
+  canvas { display: block; }
+
+  /* UI Overlays */
+  .overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5,5,15,0.92);
+    z-index: 10;
+  }
+  .overlay h1 {
+    font-size: 2.2rem;
+    color: #fff;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.3em;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .overlay .subtitle {
+    color: #555;
+    font-size: 0.52rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  .btn {
+    background: none;
+    border: 2px solid #fff;
+    color: #fff;
+    font-family: 'Press Start 2P', 'Courier New', monospace;
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    padding: 0.75em 2.5em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.15s, color 0.15s;
+    margin: 0.4em;
+  }
+  .btn:hover, .btn:active { background: #fff; color: #0a0a0f; }
+  .btn.accent {
+    border-color: #f0c040;
+    color: #f0c040;
+  }
+  .btn.accent:hover { background: #f0c040; color: #0a0a0f; }
+  .btn.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  #upgrade-screen {
+    display: none;
+  }
+  #upgrade-screen .xp-display {
+    font-size: 0.65rem;
+    color: #f0c040;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.2rem;
+  }
+  #upgrade-screen h2 {
+    color: #fff;
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  #upgrade-screen .score-display {
+    color: #888;
+    font-size: 0.8rem;
+    letter-spacing: 0.15em;
+    margin-bottom: 2rem;
+  }
+  #upgrade-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 80%;
+    max-width: 320px;
+    margin-bottom: 1.5rem;
+  }
+  .upgrade-btn {
+    background: none;
+    border: 1px solid #333;
+    color: #ccc;
+    font-family: 'Press Start 2P', 'Courier New', monospace;
+    font-size: 0.82rem;
+    letter-spacing: 0.1em;
+    padding: 0.7em 1em;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .upgrade-btn:hover:not(.disabled) { border-color: #f0c040; color: #f0c040; }
+  .upgrade-btn.disabled { opacity: 0.25; pointer-events: none; }
+  .upgrade-btn .cost { color: #f0c040; font-size: 0.75rem; }
+  .upgrade-btn.disabled .cost { color: #555; }
+
+  #start-screen canvas-preview {
+    width: 80px; height: 80px;
+    margin-bottom: 1rem;
+  }
+
+  .shape-preview {
+    margin: 1rem 0 1.5rem;
+  }
+
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    pointer-events: none;
+    z-index: 5;
+    padding: 12px 14px 0;
+  }
+  #xp-bar-bg {
+    width: 100%;
+    height: 5px;
+    background: #1a1a2e;
+    border-radius: 3px;
+    margin-bottom: 6px;
+  }
+  #xp-bar {
+    height: 100%;
+    background: #f0c040;
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.1s;
+  }
+  #hud-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.5rem;
+    color: #888;
+    letter-spacing: 0.1em;
+  }
+  #hud-info span { color: #ccc; }
+  @keyframes pulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+  #ad-countdown { animation: pulse 1s ease-in-out infinite; }
+
+  #hud-warning {
+    text-align: center;
+    color: #e05050;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    height: 1em;
+    margin-top: 2px;
+  }
+
+  /* Joystick */
+  #joystick-zone {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 45%;
+    z-index: 5;
+    touch-action: none;
+    pointer-events: all;
+  }
+  #joystick-base {
+    position: absolute;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    display: none;
+    transform: translate(-50%,-50%);
+    pointer-events: none;
+  }
+  #joystick-stick {
+    position: absolute;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    border: 1.5px solid rgba(255,255,255,0.4);
+    transform: translate(-50%,-50%);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<!-- ═══════════════════════════════════════════════════════════════
+     TIKTOK MINI GAME SDK — loads async so game always works in browser
+     When you go live: replace YOUR_CLIENT_KEY_HERE with your real key
+     from https://developers.tiktok.com/apps/
+═══════════════════════════════════════════════════════════════ -->
+<script>
+  // Load TikTok SDK asynchronously — if it fails (e.g. in Chrome), game still runs
+  (function() {
+    var s = document.createElement('script');
+    s.src = 'https://developers.tiktok.com/js/minis.js';
+    s.async = true;
+    s.onload = function() {
+      if (window.TTMinis) {
+        TTMinis.game.init({ clientKey: 'YOUR_CLIENT_KEY_HERE' });
+      }
+    };
+    s.onerror = function() {
+      // SDK unavailable (normal in browser) — game runs fine without it
+      console.log('TikTok SDK not available — running in browser mode');
+    };
+    document.head.appendChild(s);
+  })();
+</script>
+<div id="game-container">
+  <canvas id="gameCanvas" width="480" height="720"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="xp-bar-bg"><div id="xp-bar"></div></div>
+    <div id="hud-info">
+      <div>XP <span id="hud-xp">0</span></div>
+      <div>SHAPE <span id="hud-shape">TRIANGLE</span></div>
+      <div>WAVE <span id="hud-wave">1</span></div>
+    </div>
+    <div id="hud-warning"></div>
+  </div>
+
+  <!-- Start Screen -->
+  <div class="overlay" id="start-screen">
+    <h1>POLYGON<br>ARENA</h1>
+    <p class="subtitle">HOW MANY WAVES CAN YOU SURVIVE?</p>
+    <canvas id="preview-canvas" width="110" height="110" style="margin-bottom:1.5rem;"></canvas>
+    <button class="btn accent" onclick="startGame()">START GAME</button>
+    <div style="color:#444;font-size:0.72rem;letter-spacing:0.18em;margin-top:1.5rem;text-align:center;">
+      DRAG TO MOVE &amp; AIM
+    </div>
+  </div>
+
+  <!-- Upgrade Screen -->
+  <div class="overlay" id="upgrade-screen">
+    <h2>SHAPE DESTROYED</h2>
+    <div class="score-display" id="upgrade-score"></div>
+    <div class="score-display" id="upgrade-highscore" style="color:#f0c040;margin-top:0.2rem;"></div>
+    <div class="xp-display">⬡ <span id="upgrade-xp">0</span> XP BANKED</div>
+    <canvas id="upgrade-preview" width="90" height="90" class="shape-preview"></canvas>
+    <div id="upgrade-options"></div>
+    <button class="btn accent" id="respawn-btn" onclick="watchAdAndRespawn()">▶ WATCH AD TO RESPAWN</button>
+  </div>
+
+  <!-- Ad Overlay -->
+  <div id="ad-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:20;flex-direction:column;align-items:center;justify-content:center;font-family:'Courier New',monospace;">
+    <div style="color:#888;font-size:0.7rem;letter-spacing:0.2em;margin-bottom:1rem;">ADVERTISEMENT</div>
+    <div style="width:280px;height:200px;background:#111;border:1px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:1.5rem;position:relative;">
+      <!-- Mock ad creative — replace with real ad SDK slot -->
+      <div style="color:#555;font-size:0.75rem;letter-spacing:0.15em;text-align:center;line-height:2em;">
+        YOUR AD HERE<br>
+        <span style="font-size:0.6rem;color:#333;">TikTok Ad Unit</span>
+      </div>
+      <div style="position:absolute;top:6px;right:10px;color:#333;font-size:0.6rem;">AD</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.8rem;">
+      <div style="width:32px;height:32px;border:2px solid #f0c040;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#f0c040;font-size:1rem;font-weight:bold;" id="ad-countdown">5</div>
+      <span style="color:#888;font-size:0.75rem;letter-spacing:0.1em;">Watch to earn your respawn</span>
+    </div>
+  </div>
+
+  <!-- Joystick -->
+  <div id="joystick-zone">
+    <div id="joystick-base">
+      <div id="joystick-stick"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const W = 480, H = 720;
+const ARENA = { x: 20, y: 70, w: W-40, h: H-90 };
+const SHAPES = ['triangle','square','pentagon','hexagon'];
+const SHAPE_SIDES = { triangle:3, square:4, pentagon:5, hexagon:6 };
+const SHAPE_COLORS = { triangle:'#4af', square:'#4f8', pentagon:'#f84', hexagon:'#a4f' };
+const ENEMY_COLORS = ['#f44','#f84','#e4f','#f4a','#44f'];
+const XP_TO_NEXT_LEVEL = 100;
+// Shape evolution costs: 500, 1000, 2000 (doubles each time)
+const SHAPE_EVOLVE_COSTS = [500, 1000, 2000];
+// Weapon base costs — track dynamically on player object
+const BASE_GUN_COST = 40;
+const BASE_SPIKE_COST = 30;
+const BULLET_SPEED = 1.5;
+const ENEMY_BULLET_SPEED = 1.4;
+const PLAYER_SPEED = 2.2;
+
+// ─── GAME STATE ──────────────────────────────────────────────────────────────
+let state = 'start';
+let player, enemies, bullets, xpOrbs, particles;
+let wave, score, totalXP, bankedXP, highScore;
+let joystick = { active:false, startX:0, startY:0, dx:0, dy:0 };
+let lastTime = 0;
+let shootTimer = 0;
+let waveTimer = 0;
+let warningTimer = 0;
+
+// Canvas & ctx
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// ─── PLAYER OBJECT ───────────────────────────────────────────────────────────
+function createPlayer() {
+  return {
+    x: W/2, y: H/2,
+    shape: 'triangle',
+    sides: 3,
+    angle: 0,         // direction player faces (radians)
+    r: 22,
+    hp: 3,
+    maxHp: 3,
+    xp: 0,
+    xpLevel: 0,
+    weapons: ['gun', null, null], // index 0 = front (angle), rest = other sides
+    weaponCostMult: 1, // doubles each time a weapon is purchased
+    speed: PLAYER_SPEED,
+    invincible: 0,
+    dead: false,
+  };
+}
+
+// weapon at side index: angle offset = sideAngle(i)
+function sideAngle(player, i) {
+  const sides = player.sides;
+  const step = (Math.PI * 2) / sides;
+  return player.angle + step * i;
+}
+
+function weaponAtAngle(player, angle) {
+  // Returns which weapon is facing `angle` using unified getSideOutwardAngle
+  let best = 0, bestDiff = Infinity;
+  for (let i = 0; i < player.sides; i++) {
+    const a = getSideOutwardAngle(player.angle, i, player.sides);
+    const diff = Math.abs(angleDiff(a, angle));
+    if (diff < bestDiff) { bestDiff = diff; best = i; }
+  }
+  return player.weapons[best] || null;
+}
+
+// ─── ENEMIES ─────────────────────────────────────────────────────────────────
+function spawnEnemy(type) {
+  const edge = Math.floor(Math.random()*4);
+  let x, y;
+  if (edge===0) { x=ARENA.x+Math.random()*ARENA.w; y=ARENA.y; }
+  else if (edge===1) { x=ARENA.x+ARENA.w; y=ARENA.y+Math.random()*ARENA.h; }
+  else if (edge===2) { x=ARENA.x+Math.random()*ARENA.w; y=ARENA.y+ARENA.h; }
+  else { x=ARENA.x; y=ARENA.y+Math.random()*ARENA.h; }
+
+  const shapeIdx = Math.min(Math.floor(wave/2), 3);
+  const shape = SHAPES[Math.max(0, shapeIdx - (type==='basic'?1:0))];
+  const sides = SHAPE_SIDES[shape];
+  const color = ENEMY_COLORS[Math.floor(Math.random()*ENEMY_COLORS.length)];
+
+  return {
+    x, y,
+    shape, sides, color,
+    r: 18 + sides*1.5,
+    angle: Math.random()*Math.PI*2,
+    hp: sides * (1 + wave*0.3),
+    maxHp: sides * (1 + wave*0.3),
+    xpValue: sides * 10 + wave*5,
+    speed: 0.4 + Math.random()*0.3 + wave*0.06,
+    type, // 'basic','shooter','vampire','thief'
+    shootTimer: 60 + Math.random()*80,
+    invincible: 0,
+    dead: false,
+  };
+}
+
+// ─── PARTICLES ───────────────────────────────────────────────────────────────
+function spawnParticles(x, y, color, count=8) {
+  for (let i=0;i<count;i++) {
+    const angle = Math.random()*Math.PI*2;
+    const speed = 1+Math.random()*3;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle)*speed,
+      vy: Math.sin(angle)*speed,
+      color,
+      life: 40+Math.random()*30,
+      maxLife: 70,
+      r: 2+Math.random()*3,
+    });
+  }
+}
+
+function spawnXPOrb(x, y, amount) {
+  xpOrbs.push({ x, y, amount, r:6, vx:(Math.random()-0.5)*2, vy:(Math.random()-0.5)*2, life:300 });
+}
+
+// ─── GEOMETRY HELPERS ────────────────────────────────────────────────────────
+function angleDiff(a, b) {
+  let d = ((b-a) % (Math.PI*2) + Math.PI*3) % (Math.PI*2) - Math.PI;
+  return d;
+}
+
+function dist(a, b) {
+  return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);
+}
+
+function drawPolygon(ctx, x, y, sides, r, angle, fillColor, strokeColor, strokeWidth=2, alpha=1) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  for (let i=0;i<sides;i++) {
+    const a = (i/sides)*Math.PI*2 - Math.PI/2;
+    if (i===0) ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r);
+    else ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+  }
+  ctx.closePath();
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+  if (strokeColor) {
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = strokeWidth;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ─── SIDE NORMAL MATH ────────────────────────────────────────────────────────
+// player.angle = direction side 0 (original blaster) faces outward.
+// Side i faces outward at: player.angle + (2*PI/sides)*i
+// The polygon is drawn so this is always true.
+function getSideOutwardAngle(playerAngle, sideIdx, sides) {
+  return playerAngle + (Math.PI * 2 / sides) * sideIdx;
+}
+function getSideMidpoint(px, py, playerAngle, sideIdx, sides, r) {
+  const a = getSideOutwardAngle(playerAngle, sideIdx, sides);
+  const apothem = r * Math.cos(Math.PI / sides);
+  return { x: px + Math.cos(a) * apothem, y: py + Math.sin(a) * apothem };
+}
+
+// ─── DRAW WEAPONS ON PLAYER ──────────────────────────────────────────────────
+function drawWeaponOnPlayer(ctx, px, py, playerAngle, sideIdx, sides, r, weaponType, isOriginal) {
+  const outAngle = getSideOutwardAngle(playerAngle, sideIdx, sides);
+  const mid = getSideMidpoint(px, py, playerAngle, sideIdx, sides, r);
+
+  ctx.save();
+  ctx.translate(mid.x, mid.y);
+  ctx.rotate(outAngle);
+
+  if (weaponType === 'gun') {
+    const sz = 14;
+    // Original blaster = red, extras = green
+    ctx.fillStyle = isOriginal ? '#e82222' : '#22cc44';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(-sz/2, -sz/2, sz, sz);
+    ctx.strokeRect(-sz/2, -sz/2, sz, sz);
+    // Barrel nub pointing outward
+    ctx.fillStyle = isOriginal ? '#ff8888' : '#88ffaa';
+    ctx.fillRect(sz/2 - 1, -3, 6, 6);
+  } else if (weaponType === 'spike') {
+    const len = 16, base = 9;
+    ctx.fillStyle = '#4a5a9a';
+    ctx.strokeStyle = '#8899cc';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-2, -base / 2);
+    ctx.lineTo(len, 0);
+    ctx.lineTo(-2, base / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ─── MAIN GAME INIT ──────────────────────────────────────────────────────────
+function initGame() {
+  player = createPlayer();
+  enemies = [];
+  bullets = [];
+  xpOrbs = [];
+  particles = [];
+  wave = 1;
+  score = 0;
+  totalXP = 0;
+  bankedXP = 0;
+  waveTimer = 0;
+  shootTimer = 0;
+  if (highScore === undefined) highScore = 0;
+  spawnWave();
+}
+
+function spawnWave() {
+  const count = 2 + Math.floor(wave*1.5);
+  for (let i=0;i<count;i++) {
+    let type = 'basic';
+    const r = Math.random();
+    if (wave >= 3 && r < 0.15) type = 'vampire';
+    else if (wave >= 3 && r < 0.30) type = 'thief';
+    else if (wave >= 4 && r < 0.50) type = 'shooter';
+    setTimeout(()=>enemies.push(spawnEnemy(type)), i*500);
+  }
+}
+
+// ─── UPDATE ──────────────────────────────────────────────────────────────────
+function update(dt) {
+  if (state !== 'playing') return;
+
+  // Move player via joystick
+  if (joystick.active && (joystick.dx !== 0 || joystick.dy !== 0)) {
+    const len = Math.sqrt(joystick.dx**2+joystick.dy**2);
+    const nx = joystick.dx/len;
+    const ny = joystick.dy/len;
+    player.angle = Math.atan2(ny, nx);
+    player.x = Math.max(ARENA.x+player.r, Math.min(ARENA.x+ARENA.w-player.r, player.x + nx*player.speed));
+    player.y = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, player.y + ny*player.speed));
+  }
+
+  // Decrement invincibility
+  if (player.invincible > 0) player.invincible--;
+
+  // Auto-shoot from gun sides
+  shootTimer++;
+  if (shootTimer > 18) {
+    shootTimer = 0;
+    for (let i=0;i<player.sides;i++) {
+      if (player.weapons[i] === 'gun') {
+        // Use same outward angle as weapon drawing
+        const a = getSideOutwardAngle(player.angle, i, player.sides);
+        const mid = getSideMidpoint(player.x, player.y, player.angle, i, player.sides, player.r);
+        bullets.push({
+          x: mid.x, y: mid.y,
+          vx: Math.cos(a) * BULLET_SPEED,
+          vy: Math.sin(a) * BULLET_SPEED,
+          r: 5, color:'#f44', owner:'player', life:160
+        });
+
+      }
+    }
+  }
+
+  // Update bullets
+  for (let b of bullets) {
+    b.x += b.vx; b.y += b.vy; b.life--;
+    if (b.x<ARENA.x||b.x>ARENA.x+ARENA.w||b.y<ARENA.y||b.y>ARENA.y+ARENA.h) b.life=0;
+  }
+  bullets = bullets.filter(b=>b.life>0);
+
+  // Update enemies
+  for (let e of enemies) {
+    if (e.dead) continue;
+    if (e.invincible > 0) e.invincible--;
+
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const d = Math.sqrt(dx*dx+dy*dy);
+    const nx = dx/d, ny = dy/d;
+
+    if (e.type === 'thief') {
+      // Chase nearest xp orb
+      let nearest = null, nearestD = Infinity;
+      for (let o of xpOrbs) {
+        const od = dist(e, o);
+        if (od < nearestD) { nearestD = od; nearest = o; }
+      }
+      if (nearest && nearestD < 200) {
+        const ox = nearest.x-e.x, oy = nearest.y-e.y;
+        const ol = Math.sqrt(ox*ox+oy*oy);
+        e.x += (ox/ol)*e.speed*1.2;
+        e.y += (oy/ol)*e.speed*1.2;
+        e.angle = Math.atan2(oy, ox);
+        if (nearestD < e.r+nearest.r) {
+          nearest.life = 0; // stolen!
+          spawnParticles(nearest.x, nearest.y, '#f0c040', 5);
+          showWarning('XP STOLEN!');
+        }
+      } else {
+        e.x += nx*e.speed*0.5;
+        e.y += ny*e.speed*0.5;
+      }
+    } else {
+      // Move toward player
+      e.x += nx*e.speed;
+      e.y += ny*e.speed;
+      e.angle += 0.02;
+    }
+
+    // Clamp to arena
+    e.x = Math.max(ARENA.x+e.r, Math.min(ARENA.x+ARENA.w-e.r, e.x));
+    e.y = Math.max(ARENA.y+e.r, Math.min(ARENA.y+ARENA.h-e.r, e.y));
+
+    // Enemy shooting
+    if (e.type === 'shooter') {
+      e.shootTimer--;
+      if (e.shootTimer <= 0) {
+        e.shootTimer = 140 - wave*4;
+        if (e.shootTimer < 50) e.shootTimer = 50;
+        const a = Math.atan2(dy, dx);
+        // small spread
+        for (let s=-1;s<=1;s++) {
+          const ba = a + s*0.2;
+          bullets.push({
+            x: e.x + Math.cos(ba)*e.r,
+            y: e.y + Math.sin(ba)*e.r,
+            vx: Math.cos(ba)*ENEMY_BULLET_SPEED,
+            vy: Math.sin(ba)*ENEMY_BULLET_SPEED,
+            r:4, color:'#f84', owner:'enemy', life:200
+          });
+        }
+      }
+    }
+
+    // Vampire drains XP on contact
+    if (e.type === 'vampire' && d < e.r+player.r+5 && player.invincible <= 0) {
+      const drain = Math.min(20, player.xp);
+      player.xp -= drain;
+      totalXP -= drain;
+      if (drain > 0) {
+        showWarning('XP DRAINED!');
+        sfxXPDrain();
+        spawnParticles(player.x, player.y, '#a44', 6);
+      }
+      player.invincible = 60;
+    }
+
+    // Collision with player
+    if (d < e.r+player.r && e.type !== 'vampire' && e.type !== 'thief') {
+      if (player.invincible <= 0) {
+        // Check which side of player was hit
+        const hitAngle = Math.atan2(dy, dx) + Math.PI; // angle from enemy to player face
+        const weapon = weaponAtAngle(player, hitAngle);
+        if (weapon === 'spike') {
+          // Player kills with spike!
+          killEnemy(e); sfxSpikeKill();
+        } else {
+          // Player gets hit
+          playerHit();
+        }
+      }
+    }
+  }
+
+  // Player bullets vs enemies
+  for (let b of bullets) {
+    if (b.owner !== 'player') continue;
+    for (let e of enemies) {
+      if (e.dead) continue;
+      if (dist(b, e) < b.r+e.r) {
+        b.life = 0;
+        e.hp -= 1 + wave*0.2;
+        e.invincible = 8;
+        spawnParticles(b.x, b.y, b.color, 4);
+        if (e.hp <= 0) { killEnemy(e); sfxBulletKill(); } else { /* hit */ }
+      }
+    }
+  }
+
+  // Enemy bullets vs player
+  for (let b of bullets) {
+    if (b.owner !== 'enemy') continue;
+    if (dist(b, player) < b.r+player.r && player.invincible <= 0) {
+      b.life = 0;
+      spawnParticles(b.x, b.y, b.color, 4);
+      playerHit();
+    }
+  }
+
+  // XP orbs
+  for (let o of xpOrbs) {
+    o.vx *= 0.96; o.vy *= 0.96;
+    o.x += o.vx; o.y += o.vy;
+    o.life--;
+    // Attract to player when close
+    const od = dist(o, player);
+    if (od < 80) {
+      o.vx += (player.x-o.x)/od * 0.8;
+      o.vy += (player.y-o.y)/od * 0.8;
+    }
+    if (od < player.r+o.r+4) {
+      gainXP(o.amount);
+      o.life = 0;
+      spawnParticles(o.x, o.y, '#f0c040', 3);
+    }
+  }
+  xpOrbs = xpOrbs.filter(o=>o.life>0);
+
+  // Particles
+  for (let p of particles) {
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.94; p.vy *= 0.94;
+    p.life--;
+  }
+  particles = particles.filter(p=>p.life>0);
+
+  // Clean dead enemies
+  enemies = enemies.filter(e=>!e.dead);
+
+  // Wave complete?
+  if (enemies.length === 0) {
+    waveTimer++;
+    if (waveTimer > 90) {
+      wave++;
+      waveTimer = 0;
+      spawnWave();
+    }
+  }
+
+  // Warning decay
+  if (warningTimer > 0) warningTimer--;
+  else document.getElementById('hud-warning').textContent = '';
+
+  // Update HUD
+  updateHUD();
+}
+
+function playerHit() {
+  player.hp--;
+  player.invincible = 90;
+  sfxPlayerHit();
+  spawnParticles(player.x, player.y, SHAPE_COLORS[player.shape], 12);
+  if (player.hp <= 0) {
+    player.dead = true;
+    bankedXP = player.xp;
+    if (score > (highScore || 0)) highScore = score;
+    setTimeout(showUpgradeScreen, 600);
+    state = 'upgrading';
+  }
+}
+
+function killEnemy(e) {
+  e.dead = true;
+  spawnParticles(e.x, e.y, e.color, 10);
+  for (let i=0;i<3;i++) {
+    const ox = e.x + (Math.random()-0.5)*30;
+    const oy = e.y + (Math.random()-0.5)*30;
+    spawnXPOrb(ox, oy, Math.floor(e.xpValue/3));
+  }
+  score += e.xpValue;
+}
+
+function gainXP(amount) {
+  const reduced = amount * 0.30;
+  player.xp += reduced;
+  totalXP += reduced;
+}
+
+function showWarning(msg) {
+  document.getElementById('hud-warning').textContent = msg;
+  warningTimer = 90;
+}
+
+function updateHUD() {
+  const maxXP = XP_TO_NEXT_LEVEL * (1 + player.xpLevel);
+  const pct = Math.min(100, (player.xp / maxXP)*100);
+  document.getElementById('xp-bar').style.width = pct+'%';
+  document.getElementById('hud-xp').textContent = Math.floor(player.xp);
+  document.getElementById('hud-shape').textContent = player.shape.toUpperCase();
+  document.getElementById('hud-wave').textContent = wave;
+}
+
+// ─── DRAW ─────────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0,0,W,H);
+
+  // Arena border
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(ARENA.x, ARENA.y, ARENA.w, ARENA.h);
+
+  // Grid dots
+  ctx.fillStyle = '#13131f';
+  for (let gx=ARENA.x+30; gx<ARENA.x+ARENA.w; gx+=30) {
+    for (let gy=ARENA.y+30; gy<ARENA.y+ARENA.h; gy+=30) {
+      ctx.beginPath();
+      ctx.arc(gx,gy,1.2,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // XP Orbs
+  for (let o of xpOrbs) {
+    const alpha = Math.min(1, o.life/30);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#f0c040';
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#f0c040';
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Particles
+  for (let p of particles) {
+    const alpha = p.life/p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Enemies
+  for (let e of enemies) {
+    if (e.dead) continue;
+    const flash = e.invincible > 0 && Math.floor(e.invincible/4)%2===0;
+
+    // Health bar
+    const bw = e.r*2.5;
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(e.x-bw/2, e.y-e.r-10, bw, 4);
+    ctx.fillStyle = e.type==='vampire'?'#a44':e.type==='thief'?'#4af':e.color;
+    ctx.fillRect(e.x-bw/2, e.y-e.r-10, bw*(e.hp/e.maxHp), 4);
+
+    // Special indicators
+    let strokeColor = flash ? '#fff' : '#0a0a0f';
+    let extraStroke = null;
+    if (e.type==='vampire') extraStroke='#a44';
+    if (e.type==='thief') extraStroke='#4af';
+
+    drawPolygon(ctx, e.x, e.y, e.sides, e.r, e.angle,
+      flash?'#fff':e.color+'cc',
+      extraStroke || strokeColor, 2);
+
+    // Type label
+    if (e.type!=='basic' && e.type!=='shooter') {
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = '#fff';
+      ctx.font = '8px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText(e.type.toUpperCase(), e.x, e.y+e.r+16);
+      ctx.restore();
+    }
+  }
+
+  // Bullets
+  for (let b of bullets) {
+    ctx.save();
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = b.color;
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Player
+  if (!player.dead) {
+    const flash = player.invincible > 0 && Math.floor(player.invincible/6)%2===0;
+    const pcolor = SHAPE_COLORS[player.shape];
+
+    // Shadow/glow
+    ctx.save();
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = pcolor;
+    drawPolygon(ctx, player.x, player.y, player.sides, player.r, player.angle + Math.PI/2 - Math.PI/player.sides,
+      flash?'rgba(255,255,255,0.3)':pcolor+'44', null, 0);
+    ctx.restore();
+
+    // Main shape
+    drawPolygon(ctx, player.x, player.y, player.sides, player.r, player.angle + Math.PI/2 - Math.PI/player.sides,
+      flash?'#fff':pcolor+'cc', '#fff', 2);
+
+    // Weapons
+    for (let i=0; i<player.sides; i++) {
+      if (player.weapons[i]) {
+        drawWeaponOnPlayer(ctx, player.x, player.y, player.angle, i, player.sides, player.r, player.weapons[i], i===0);
+      }
+    }
+
+    // HP dots
+    for (let i=0;i<player.maxHp;i++) {
+      ctx.beginPath();
+      ctx.arc(player.x - (player.maxHp-1)*6 + i*12, player.y - player.r - 14, 4, 0, Math.PI*2);
+      ctx.fillStyle = i < player.hp ? pcolor : '#333';
+      ctx.fill();
+    }
+  }
+
+  // Wave clear notification
+  if (waveTimer > 0 && waveTimer < 60) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, waveTimer/20) * Math.min(1,(60-waveTimer)/20);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 1.2rem Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('WAVE '+(wave-1)+' CLEARED', W/2, H/2);
+    ctx.restore();
+  }
+}
+
+// ─── GAME LOOP ────────────────────────────────────────────────────────────────
+function loop(ts) {
+  const dt = (ts - lastTime) / 16.67;
+  lastTime = ts;
+  if (state === 'playing') {
+    update(Math.min(dt, 3));
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+// ─── UPGRADE SCREEN ──────────────────────────────────────────────────────────
+function showUpgradeScreen() {
+  document.getElementById('upgrade-screen').style.display = 'flex';
+  document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
+  document.getElementById('upgrade-score').textContent = 'SCORE: '+score+' | WAVE: '+wave;
+  document.getElementById('upgrade-highscore').textContent = 'BEST: '+(highScore||0);
+
+  // Preview canvas
+  const pc = document.getElementById('upgrade-preview');
+  const pctx = pc.getContext('2d');
+  pctx.clearRect(0,0,90,90);
+  const pcolor = SHAPE_COLORS[player.shape];
+  drawPolygon(pctx, 45, 45, player.sides, 28, Math.PI/2 - Math.PI/player.sides, pcolor+'cc', '#fff', 2);
+  for (let i=0;i<player.sides;i++) {
+    if (player.weapons[i]) drawWeaponOnPlayer(pctx, 45, 45, 0, i, player.sides, 28, player.weapons[i], i===0);
+  }
+
+  // Reset respawn button in case it was mid-ad
+  const rb = document.getElementById('respawn-btn');
+  if (rb) { rb.disabled = false; rb.textContent = '▶ WATCH AD TO RESPAWN'; }
+  buildUpgradeOptions();
+}
+
+function buildUpgradeOptions() {
+  const container = document.getElementById('upgrade-options');
+  container.innerHTML = '';
+  const xp = bankedXP;
+  const mult = player.weaponCostMult || 1;
+
+  // Evolve shape
+  const shapeIdx = SHAPES.indexOf(player.shape);
+  if (shapeIdx < SHAPES.length-1) {
+    const cost = SHAPE_EVOLVE_COSTS[shapeIdx];
+    const nextShape = SHAPES[shapeIdx+1];
+    const canAfford = xp >= cost;
+    const btn = makeUpgradeBtn(
+      `EVOLVE TO ${nextShape.toUpperCase()}  (+${SHAPE_SIDES[nextShape]-player.sides} SLOTS)`,
+      cost, canAfford,
+      ()=>{ bankedXP -= cost; player.shape = nextShape; player.sides = SHAPE_SIDES[nextShape];
+            while(player.weapons.length < player.sides) player.weapons.push(null);
+            buildUpgradeOptions(); refreshUpgradePreview(); }
+    );
+    container.appendChild(btn);
+  }
+
+  // Add weapon to empty slots
+  for (let i=0; i<player.sides; i++) {
+    if (!player.weapons[i]) {
+      const sideName = getSideName(i, player.sides);
+      const gunCost = Math.round(BASE_GUN_COST * mult);
+      const spikeCost = Math.round(BASE_SPIKE_COST * mult);
+      const canAffordGun = xp >= gunCost;
+      const canAffordSpike = xp >= spikeCost;
+      container.appendChild(makeUpgradeBtn(
+        `ADD BLASTER — ${sideName}`, gunCost, canAffordGun,
+        ()=>{ bankedXP -= gunCost; player.weapons[i]='gun'; player.weaponCostMult = (player.weaponCostMult||1)*2; buildUpgradeOptions(); refreshUpgradePreview(); }
+      ));
+      container.appendChild(makeUpgradeBtn(
+        `ADD SPIKE — ${sideName}`, spikeCost, canAffordSpike,
+        ()=>{ bankedXP -= spikeCost; player.weapons[i]='spike'; player.weaponCostMult = (player.weaponCostMult||1)*2; buildUpgradeOptions(); refreshUpgradePreview(); }
+      ));
+    }
+  }
+
+  // Update XP display
+  document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
+}
+
+function getSideName(i, sides) {
+  if (sides === 3) return ['FRONT','BACK-LEFT','BACK-RIGHT'][i]||`SIDE ${i}`;
+  if (sides === 4) return ['FRONT','RIGHT','BACK','LEFT'][i]||`SIDE ${i}`;
+  return `SIDE ${i+1}`;
+}
+
+function makeUpgradeBtn(label, cost, canAfford, onClick) {
+  const btn = document.createElement('button');
+  btn.className = 'upgrade-btn' + (canAfford?'':' disabled');
+  btn.innerHTML = `<span>${label}</span><span class="cost">${cost} XP</span>`;
+  if (canAfford) btn.onclick = onClick;
+  return btn;
+}
+
+function refreshUpgradePreview() {
+  document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
+  const pc = document.getElementById('upgrade-preview');
+  const pctx = pc.getContext('2d');
+  pctx.clearRect(0,0,90,90);
+  const pcolor = SHAPE_COLORS[player.shape];
+  drawPolygon(pctx, 45,45, player.sides, 28, Math.PI/2 - Math.PI/player.sides, pcolor+'cc','#fff',2);
+  for(let i=0;i<player.sides;i++){
+    if(player.weapons[i]) drawWeaponOnPlayer(pctx,45,45,0,i,player.sides,28,player.weapons[i],i===0);
+  }
+}
+
+// ─── AD SYSTEM ───────────────────────────────────────────────────────────────
+// YOUR AD UNIT ID — get this from the TikTok Developer Portal after
+// enabling In-App Ads for your Mini Game app.
+const AD_UNIT_ID = 'YOUR_AD_UNIT_ID_HERE';
+
+let adCountdown = 0;
+let adInterval = null;
+
+function watchAdAndRespawn() {
+  const btn = document.getElementById('respawn-btn');
+  btn.disabled = true;
+  btn.textContent = 'LOADING AD...';
+
+  if (window.TTMinis && TTMinis.game.showRewardedAd) {
+    // ── REAL TIKTOK REWARDED AD ──
+    TTMinis.game.showRewardedAd({
+      adUnitId: AD_UNIT_ID,
+      success: () => {
+        // Ad watched successfully — give the reward
+        continueGame();
+      },
+      fail: (err) => {
+        console.warn('Ad failed or was skipped:', err);
+        // Still let them respawn if ad fails (good UX)
+        continueGame();
+      }
+    });
+  } else {
+    // ── BROWSER FALLBACK (mock 5-second ad for local testing) ──
+    showMockAd();
+  }
+}
+
+function showMockAd() {
+  const adEl = document.getElementById('ad-overlay');
+  adEl.style.display = 'flex';
+  adCountdown = 5;
+  document.getElementById('ad-countdown').textContent = adCountdown;
+  adInterval = setInterval(() => {
+    adCountdown--;
+    document.getElementById('ad-countdown').textContent = adCountdown;
+    if (adCountdown <= 0) {
+      clearInterval(adInterval);
+      adEl.style.display = 'none';
+      continueGame();
+    }
+  }, 1000);
+}
+
+// ─── CONTINUE ────────────────────────────────────────────────────────────────
+function continueGame() {
+  document.getElementById('upgrade-screen').style.display = 'none';
+  // Save upgrades
+  const savedShape = player.shape;
+  const savedSides = player.sides;
+  const savedWeapons = player.weapons.slice();
+  const savedWeaponCostMult = player.weaponCostMult || 1;
+  // Full reset
+  enemies = []; bullets = []; xpOrbs = []; particles = [];
+  wave = 1; score = 0; waveTimer = 0; shootTimer = 0;
+  // Restore player with upgrades
+  player = createPlayer();
+  player.shape = savedShape;
+  player.sides = savedSides;
+  player.weapons = savedWeapons;
+  player.weaponCostMult = savedWeaponCostMult;
+  player.xp = bankedXP;
+  player.hp = player.maxHp;
+  player.invincible = 120;
+  spawnWave();
+  state = 'playing';
+  if (!musicPlaying) startBgMusic();
+}
+
+// ─── START ────────────────────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('start-screen').style.display = 'none';
+  initGame();
+  state = 'playing';
+  startBgMusic();
+  // Tell TikTok the game has fully loaded (required by SDK)
+  if (window.TTMinis) TTMinis.game.setLoadingProgress(1);
+}
+
+// ─── JOYSTICK ────────────────────────────────────────────────────────────────
+const jZone = document.getElementById('joystick-zone');
+const jBase = document.getElementById('joystick-base');
+const jStick = document.getElementById('joystick-stick');
+const MAX_JOYSTICK = 42;
+
+function getZonePos(e) {
+  const rect = jZone.getBoundingClientRect();
+  const touch = e.touches ? e.touches[0] : e;
+  return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+}
+
+jZone.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const pos = getZonePos(e);
+  joystick.active = true;
+  joystick.startX = pos.x;
+  joystick.startY = pos.y;
+  joystick.dx = 0; joystick.dy = 0;
+  jBase.style.left = pos.x+'px';
+  jBase.style.top = pos.y+'px';
+  jBase.style.display = 'block';
+  jStick.style.left = pos.x+'px';
+  jStick.style.top = pos.y+'px';
+}, {passive:false});
+
+jZone.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!joystick.active) return;
+  const pos = getZonePos(e);
+  let dx = pos.x - joystick.startX;
+  let dy = pos.y - joystick.startY;
+  const len = Math.sqrt(dx*dx+dy*dy);
+  if (len > MAX_JOYSTICK) { dx = dx/len*MAX_JOYSTICK; dy = dy/len*MAX_JOYSTICK; }
+  joystick.dx = dx; joystick.dy = dy;
+  jStick.style.left = (joystick.startX+dx)+'px';
+  jStick.style.top = (joystick.startY+dy)+'px';
+}, {passive:false});
+
+jZone.addEventListener('touchend', e => {
+  e.preventDefault();
+  joystick.active = false;
+  joystick.dx = 0; joystick.dy = 0;
+  jBase.style.display = 'none';
+}, {passive:false});
+
+// Mouse fallback (desktop testing)
+jZone.addEventListener('mousedown', e => {
+  const rect = jZone.getBoundingClientRect();
+  joystick.active = true;
+  joystick.startX = e.clientX - rect.left;
+  joystick.startY = e.clientY - rect.top;
+  joystick.dx = 0; joystick.dy = 0;
+  jBase.style.left = joystick.startX+'px';
+  jBase.style.top = joystick.startY+'px';
+  jBase.style.display = 'block';
+  jStick.style.left = joystick.startX+'px';
+  jStick.style.top = joystick.startY+'px';
+});
+window.addEventListener('mousemove', e => {
+  if (!joystick.active) return;
+  const rect = jZone.getBoundingClientRect();
+  let dx = (e.clientX-rect.left)-joystick.startX;
+  let dy = (e.clientY-rect.top)-joystick.startY;
+  const len = Math.sqrt(dx*dx+dy*dy);
+  if (len > MAX_JOYSTICK) { dx=dx/len*MAX_JOYSTICK; dy=dy/len*MAX_JOYSTICK; }
+  joystick.dx=dx; joystick.dy=dy;
+  jStick.style.left=(joystick.startX+dx)+'px';
+  jStick.style.top=(joystick.startY+dy)+'px';
+});
+window.addEventListener('mouseup', ()=>{
+  joystick.active=false; joystick.dx=0; joystick.dy=0;
+  jBase.style.display='none';
+});
+
+// ─── START SCREEN PREVIEW ────────────────────────────────────────────────────
+(function() {
+  const pc = document.getElementById('preview-canvas');
+  const pctx = pc.getContext('2d');
+  let a = -Math.PI/2; // blaster starts pointing up
+  function animPreview() {
+    pctx.clearRect(0,0,110,110);
+    a += 0.018;
+    // polygon rotation = a + PI/2 - PI/sides (so side 0 outward normal = a)
+    const polyAngle = a + Math.PI/2 - Math.PI/3;
+    drawPolygon(pctx, 55, 55, 3, 30, polyAngle, '#4aaaff', '#fff', 2);
+    drawWeaponOnPlayer(pctx, 55, 55, a, 0, 3, 30, 'gun', true);
+    requestAnimationFrame(animPreview);
+  }
+  animPreview();
+})();
+
+// ─── AUDIO ───────────────────────────────────────────────────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+// Synth helper
+function playTone(freq, type, duration, gainVal, detune=0, decay=true) {
+  ensureAudio();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.type = type; osc.frequency.value = freq; osc.detune.value = detune;
+  gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+  if (decay) gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.start(); osc.stop(audioCtx.currentTime + duration);
+}
+
+function playNoise(duration, gainVal) {
+  ensureAudio();
+  const bufSize = audioCtx.sampleRate * duration;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i=0;i<bufSize;i++) data[i] = Math.random()*2-1;
+  const src = audioCtx.createBufferSource();
+  const gain = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass'; filter.frequency.value = 800;
+  src.buffer = buf; src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+  gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  src.start(); src.stop(audioCtx.currentTime + duration);
+}
+
+function sfxBulletKill() {
+  // Boom: low thud + noise burst
+  playTone(80, 'sine', 0.18, 0.5);
+  playTone(120, 'sine', 0.12, 0.3);
+  playNoise(0.12, 0.4);
+}
+
+function sfxSpikeKill() {
+  // Satisfying pop
+  playTone(400, 'sine', 0.05, 0.5);
+  playTone(800, 'sine', 0.08, 0.4);
+  playTone(1200, 'triangle', 0.12, 0.3);
+}
+
+function sfxPlayerHit() {
+  playNoise(0.15, 0.3);
+  playTone(200, 'sawtooth', 0.2, 0.2);
+}
+
+function sfxXPDrain() {
+  playTone(300, 'sine', 0.1, 0.15);
+  playTone(200, 'sine', 0.15, 0.1);
+}
+
+// ─── BG MUSIC ────────────────────────────────────────────────────────────────
+let musicNodes = [];
+let musicPlaying = false;
+const MUSIC_BPM = 128;
+const BEAT = 60 / MUSIC_BPM;
+
+function startBgMusic() {
+  if (musicPlaying) return;
+  musicPlaying = true;
+  ensureAudio();
+  scheduleMusicLoop();
+}
+
+function stopBgMusic() {
+  musicPlaying = false;
+  musicNodes.forEach(n => { try { n.stop(); } catch(e){} });
+  musicNodes = [];
+}
+
+const BASS_NOTES = [55, 55, 73, 82, 55, 55, 73, 98];
+const LEAD_NOTES = [220, 0, 330, 0, 440, 330, 0, 262];
+let musicStep = 0;
+let musicTimeout = null;
+
+function scheduleMusicLoop() {
+  if (!musicPlaying) return;
+  const step = musicStep % BASS_NOTES.length;
+
+  // Bass note
+  if (BASS_NOTES[step] > 0) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sawtooth'; osc.frequency.value = BASS_NOTES[step];
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + BEAT * 0.8);
+    osc.start(); osc.stop(audioCtx.currentTime + BEAT);
+    musicNodes.push(osc);
+  }
+
+  // Lead note every other step
+  if (LEAD_NOTES[step] > 0) {
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.connect(gain2); gain2.connect(audioCtx.destination);
+    osc2.type = 'square'; osc2.frequency.value = LEAD_NOTES[step];
+    gain2.gain.setValueAtTime(0.04, audioCtx.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + BEAT * 0.5);
+    osc2.start(); osc2.stop(audioCtx.currentTime + BEAT);
+    musicNodes.push(osc2);
+  }
+
+  // Hi-hat on every beat
+  playNoise(0.04, 0.04);
+
+  musicStep++;
+  musicTimeout = setTimeout(scheduleMusicLoop, BEAT * 1000);
+}
+
+// ─── BOOT ────────────────────────────────────────────────────────────────────
+// Tell TikTok we're 80% loaded (assets ready, waiting for user tap)
+if (window.TTMinis) TTMinis.game.setLoadingProgress(0.8);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
