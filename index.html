@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Polygon Arena</title>
+<title>Polygon Rampage</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -248,14 +248,51 @@
   </div>
 
   <!-- Start Screen -->
-  <div class="overlay" id="start-screen">
-    <h1>POLYGON<br>ARENA</h1>
-    <p class="subtitle">HOW MANY WAVES CAN YOU SURVIVE?</p>
-    <canvas id="preview-canvas" width="110" height="110" style="margin-bottom:1.5rem;"></canvas>
-    <button class="btn accent" onclick="startGame()">START GAME</button>
-    <div style="color:#444;font-size:0.72rem;letter-spacing:0.18em;margin-top:1.5rem;text-align:center;">
-      DRAG TO MOVE &amp; AIM
+  <div class="overlay" id="start-screen" style="justify-content:flex-start;padding-top:1.5rem;overflow-y:auto;">
+    <h1>POLYGON<br>RAMPAGE</h1>
+    <p class="subtitle" style="margin-bottom:1rem;">HOW MANY WAVES CAN YOU SURVIVE?</p>
+    <canvas id="preview-canvas" width="110" height="110" style="margin-bottom:1rem;"></canvas>
+    <button class="btn accent" onclick="startGame()" style="margin-bottom:1.4rem;">START GAME</button>
+
+    <div style="width:82%;max-width:340px;border-top:1px solid #222;padding-top:1.1rem;display:flex;flex-direction:column;gap:0.85rem;">
+
+      <div style="text-align:center;">
+        <div style="color:#f0c040;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">MOVEMENT</div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
+          PRESS &amp; DRAG ANYWHERE ON THE LOWER<br>HALF OF THE SCREEN TO MOVE &amp; AIM.<br>YOUR SHAPE ALWAYS FACES YOUR FINGER.
+        </div>
+      </div>
+
+      <div style="text-align:center;">
+        <div style="color:#e82222;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">THE RED BLASTER</div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
+          THE RED SQUARE LEADS YOUR SHAPE.<br>IT AUTO-FIRES BULLETS IN THE DIRECTION<br>YOU MOVE. KEEP ENEMIES IN FRONT.
+        </div>
+      </div>
+
+      <div style="text-align:center;">
+        <div style="color:#8899cc;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">THE BLUE SPIKE</div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
+          UNLOCK THE SPIKE TO INSTANTLY KILL<br>ENEMIES ON CONTACT — BUT ONLY THE<br>TIP COUNTS. WRONG SIDE = YOU TAKE DAMAGE.
+        </div>
+      </div>
+
+      <div style="text-align:center;">
+        <div style="color:#f84;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">ENEMIES TO WATCH</div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
+          VAMPIRES DRAIN YOUR XP ON CONTACT.<br>THIEVES RACE TO STEAL XP ORBS<br>BEFORE YOU CAN COLLECT THEM.
+        </div>
+      </div>
+
+      <div style="text-align:center;">
+        <div style="color:#a4f;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">EVOLVE YOUR SHAPE</div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
+          SPEND XP TO EVOLVE — MORE SIDES<br>MEANS MORE WEAPON SLOTS.<br>SURVIVE LONG ENOUGH AND YOU MAY<br>UNLOCK SHAPES BEYOND THE HEXAGON...
+        </div>
+      </div>
+
     </div>
+    <div style="height:1.5rem;"></div>
   </div>
 
   <!-- Upgrade Screen -->
@@ -263,13 +300,34 @@
     <h2>SHAPE DESTROYED</h2>
     <div class="score-display" id="upgrade-score"></div>
     <div class="score-display" id="upgrade-highscore" style="color:#f0c040;margin-top:0.2rem;"></div>
+    <div id="secret-hint" style="display:none;font-size:0.38rem;letter-spacing:0.1em;margin-top:0.3rem;text-align:center;padding:0 1rem;"></div>
     <div class="xp-display">⬡ <span id="upgrade-xp">0</span> XP BANKED</div>
     <canvas id="upgrade-preview" width="90" height="90" class="shape-preview"></canvas>
     <div id="upgrade-options"></div>
+    <div style="width:80%;max-width:320px;margin-bottom:0.5rem;">
+      <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="width:100%;border-color:#22cc44;color:#22cc44;font-size:0.55rem;">▶ WATCH AD FOR +300 XP</button>
+    </div>
+    <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="border-color:#4af;color:#4af;margin-bottom:0.3rem;">▶ WATCH AD FOR 300 XP</button>
     <button class="btn accent" id="respawn-btn" onclick="watchAdAndRespawn()">▶ WATCH AD TO RESPAWN</button>
   </div>
 
-  <!-- Ad Overlay -->
+  <!-- XP Ad Overlay -->
+  <div id="xp-ad-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:20;flex-direction:column;align-items:center;justify-content:center;font-family:'Press Start 2P','Courier New',monospace;">
+    <div style="color:#888;font-size:0.55rem;letter-spacing:0.2em;margin-bottom:1rem;">ADVERTISEMENT</div>
+    <div style="width:280px;height:200px;background:#111;border:1px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:1.5rem;position:relative;">
+      <div style="color:#555;font-size:0.6rem;letter-spacing:0.15em;text-align:center;line-height:2em;">
+        YOUR AD HERE<br>
+        <span style="font-size:0.5rem;color:#333;">TikTok Ad Unit</span>
+      </div>
+      <div style="position:absolute;top:6px;right:10px;color:#333;font-size:0.5rem;">AD</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.8rem;">
+      <div style="width:32px;height:32px;border:2px solid #22cc44;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#22cc44;font-size:1rem;font-weight:bold;animation:pulse 1s ease-in-out infinite;" id="xp-ad-countdown">5</div>
+      <span style="color:#22cc44;font-size:0.5rem;letter-spacing:0.1em;">+300 XP INCOMING</span>
+    </div>
+  </div>
+
+  <!-- Respawn Ad Overlay -->
   <div id="ad-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:20;flex-direction:column;align-items:center;justify-content:center;font-family:'Courier New',monospace;">
     <div style="color:#888;font-size:0.7rem;letter-spacing:0.2em;margin-bottom:1rem;">ADVERTISEMENT</div>
     <div style="width:280px;height:200px;background:#111;border:1px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:1.5rem;position:relative;">
@@ -299,12 +357,13 @@
 const W = 480, H = 720;
 const ARENA = { x: 20, y: 70, w: W-40, h: H-90 };
 const SHAPES = ['triangle','square','pentagon','hexagon'];
-const SHAPE_SIDES = { triangle:3, square:4, pentagon:5, hexagon:6 };
-const SHAPE_COLORS = { triangle:'#4af', square:'#4f8', pentagon:'#f84', hexagon:'#a4f' };
+const SHAPES_SECRET = ['heptagon','octagon']; // unlocked at wave 10+
+const SHAPE_SIDES = { triangle:3, square:4, pentagon:5, hexagon:6, heptagon:7, octagon:8 };
+const SHAPE_COLORS = { triangle:'#4af', square:'#4f8', pentagon:'#f84', hexagon:'#a4f', heptagon:'#ff4af', octagon:'#ffd700' };
 const ENEMY_COLORS = ['#f44','#f84','#e4f','#f4a','#44f'];
 const XP_TO_NEXT_LEVEL = 100;
 // Shape evolution costs: 500, 1000, 2000 (doubles each time)
-const SHAPE_EVOLVE_COSTS = [500, 1000, 2000];
+const SHAPE_EVOLVE_COSTS = [500, 1000, 2000, 3500, 6000]; // tri>sq>pent>hex>hept>oct
 // Weapon base costs — track dynamically on player object
 const BASE_GUN_COST = 40;
 const BASE_SPIKE_COST = 30;
@@ -315,7 +374,7 @@ const PLAYER_SPEED = 2.2;
 // ─── GAME STATE ──────────────────────────────────────────────────────────────
 let state = 'start';
 let player, enemies, bullets, xpOrbs, particles;
-let wave, score, totalXP, bankedXP, highScore;
+let wave, score, totalXP, bankedXP, highScore, highestWave;
 let joystick = { active:false, startX:0, startY:0, dx:0, dy:0 };
 let lastTime = 0;
 let shootTimer = 0;
@@ -745,6 +804,7 @@ function playerHit() {
     player.dead = true;
     bankedXP = player.xp;
     if (score > (highScore || 0)) highScore = score;
+    if (wave > (highestWave || 0)) highestWave = wave;
     setTimeout(showUpgradeScreen, 600);
     state = 'upgrading';
   }
@@ -937,6 +997,24 @@ function showUpgradeScreen() {
   document.getElementById('upgrade-screen').style.display = 'flex';
   document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
   document.getElementById('upgrade-score').textContent = 'SCORE: '+score+' | WAVE: '+wave;
+  // Show secret unlock hint if close to wave 10
+  const hw = highestWave || wave;
+  if (hw >= 8 && player.shape !== 'heptagon' && player.shape !== 'octagon') {
+    const hint = document.getElementById('secret-hint');
+    if (hint) {
+      if (hw >= 10 && player.shape === 'hexagon') {
+        hint.textContent = '★ SECRET SHAPE UNLOCKED — CHECK UPGRADES';
+        hint.style.color = '#ff4af';
+      } else if (hw >= 10 && player.shape !== 'hexagon') {
+        hint.textContent = '★ REACH HEXAGON TO UNLOCK SECRET SHAPES';
+        hint.style.color = '#ff4af';
+      } else {
+        hint.textContent = `REACH WAVE 10 TO UNLOCK A SECRET SHAPE... (BEST: WAVE ${hw})`;
+        hint.style.color = '#555';
+      }
+      hint.style.display = 'block';
+    }
+  }
   document.getElementById('upgrade-highscore').textContent = 'BEST: '+(highScore||0);
 
   // Preview canvas
@@ -949,9 +1027,14 @@ function showUpgradeScreen() {
     if (player.weapons[i]) drawWeaponOnPlayer(pctx, 45, 45, 0, i, player.sides, 28, player.weapons[i], i===0);
   }
 
-  // Reset respawn button in case it was mid-ad
+  // Reset buttons
   const rb = document.getElementById('respawn-btn');
   if (rb) { rb.disabled = false; rb.textContent = '▶ WATCH AD TO RESPAWN'; }
+  const xpb = document.getElementById('xp-ad-btn');
+  if (xpb) { xpb.disabled = false; xpb.textContent = '▶ WATCH AD FOR 300 XP'; xpb.style.borderColor='#4af'; xpb.style.color='#4af'; }
+  // Reset XP ad button for fresh use each death
+  const xb = document.getElementById('xp-ad-btn');
+  if (xb) { xb.disabled = false; xb.textContent = '▶ WATCH AD FOR +300 XP'; xb.style.opacity = '1'; }
   buildUpgradeOptions();
 }
 
@@ -961,19 +1044,54 @@ function buildUpgradeOptions() {
   const xp = bankedXP;
   const mult = player.weaponCostMult || 1;
 
-  // Evolve shape
-  const shapeIdx = SHAPES.indexOf(player.shape);
-  if (shapeIdx < SHAPES.length-1) {
+  // Evolve shape — normal path
+  const allShapes = [...SHAPES, ...SHAPES_SECRET];
+  const shapeIdx = allShapes.indexOf(player.shape);
+  const isHexagon = player.shape === 'hexagon';
+  const isHeptagon = player.shape === 'heptagon';
+  const waveReached = highestWave || wave;
+
+  // Normal evolution (triangle through hexagon)
+  if (shapeIdx < SHAPES.length - 1) {
     const cost = SHAPE_EVOLVE_COSTS[shapeIdx];
-    const nextShape = SHAPES[shapeIdx+1];
+    const nextShape = SHAPES[shapeIdx + 1];
     const canAfford = xp >= cost;
-    const btn = makeUpgradeBtn(
+    container.appendChild(makeUpgradeBtn(
       `EVOLVE TO ${nextShape.toUpperCase()}  (+${SHAPE_SIDES[nextShape]-player.sides} SLOTS)`,
       cost, canAfford,
       ()=>{ bankedXP -= cost; player.shape = nextShape; player.sides = SHAPE_SIDES[nextShape];
             while(player.weapons.length < player.sides) player.weapons.push(null);
             buildUpgradeOptions(); refreshUpgradePreview(); }
+    ));
+  }
+
+  // SECRET: Heptagon unlocks if player is hexagon AND reached wave 10
+  if (isHexagon && waveReached >= 10) {
+    const cost = SHAPE_EVOLVE_COSTS[4]; // 3500
+    const canAfford = xp >= cost;
+    const btn = makeUpgradeBtn(
+      `★ SECRET: EVOLVE TO HEPTAGON  (+1 SLOT)`, cost, canAfford,
+      ()=>{ bankedXP -= cost; player.shape = 'heptagon'; player.sides = 7;
+            while(player.weapons.length < 7) player.weapons.push(null);
+            buildUpgradeOptions(); refreshUpgradePreview(); }
     );
+    btn.style.borderColor = '#ff4af';
+    btn.style.color = '#ff4af';
+    container.appendChild(btn);
+  }
+
+  // SECRET: Octagon unlocks if player is heptagon AND reached wave 10
+  if (isHeptagon && waveReached >= 20) {
+    const cost = SHAPE_EVOLVE_COSTS[4]; // 6000
+    const canAfford = xp >= cost;
+    const btn = makeUpgradeBtn(
+      `★ SECRET: EVOLVE TO OCTAGON  (+1 SLOT)`, cost, canAfford,
+      ()=>{ bankedXP -= cost; player.shape = 'octagon'; player.sides = 8;
+            while(player.weapons.length < 8) player.weapons.push(null);
+            buildUpgradeOptions(); refreshUpgradePreview(); }
+    );
+    btn.style.borderColor = '#ffd700';
+    btn.style.color = '#ffd700';
     container.appendChild(btn);
   }
 
@@ -1033,6 +1151,105 @@ const AD_UNIT_ID = 'YOUR_AD_UNIT_ID_HERE';
 
 let adCountdown = 0;
 let adInterval = null;
+
+function watchAdForXP() {
+  const btn = document.getElementById('xp-ad-btn');
+  btn.disabled = true;
+  btn.textContent = 'LOADING AD...';
+
+  if (window.TTMinis && typeof TTMinis.game !== 'undefined' && TTMinis.game.showRewardedAd) {
+    // Real TikTok rewarded ad
+    TTMinis.game.showRewardedAd({
+      adUnitId: AD_UNIT_ID,
+      success: () => { grantXPReward(); },
+      fail: (err) => { console.warn('XP ad failed:', err); resetXPAdBtn(); }
+    });
+  } else {
+    // Browser fallback — show mock ad then grant XP
+    showXPMockAd();
+  }
+}
+
+function showXPMockAd() {
+  const adEl = document.getElementById('xp-ad-overlay');
+  adEl.style.display = 'flex';
+  let countdown = 5;
+  document.getElementById('xp-ad-countdown').textContent = countdown;
+  const iv = setInterval(() => {
+    countdown--;
+    document.getElementById('xp-ad-countdown').textContent = countdown;
+    if (countdown <= 0) {
+      clearInterval(iv);
+      adEl.style.display = 'none';
+      grantXPReward();
+    }
+  }, 1000);
+}
+
+function grantXPReward() {
+  bankedXP += 300;
+  player.xp += 300;
+  document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
+  // Flash the XP display green
+  const xpEl = document.querySelector('#upgrade-screen .xp-display');
+  if (xpEl) {
+    xpEl.style.color = '#22cc44';
+    setTimeout(() => { xpEl.style.color = '#f0c040'; }, 800);
+  }
+  buildUpgradeOptions();
+  // Disable the button so they can only use it once per death
+  const btn = document.getElementById('xp-ad-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '+300 XP CLAIMED';
+    btn.style.opacity = '0.35';
+  }
+}
+
+function resetXPAdBtn() {
+  const btn = document.getElementById('xp-ad-btn');
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '▶ WATCH AD FOR +300 XP';
+  }
+}
+
+function watchAdForXP() {
+  const btn = document.getElementById('xp-ad-btn');
+  btn.disabled = true;
+  btn.textContent = 'LOADING AD...';
+
+  if (window.TTMinis && typeof TTMinis.game !== 'undefined' && TTMinis.game.showRewardedAd) {
+    // Real TikTok rewarded ad
+    TTMinis.game.showRewardedAd({
+      adUnitId: AD_UNIT_ID,
+      success: () => {
+        bankedXP += 300;
+        player.xp += 300;
+        document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
+        document.getElementById('upgrade-highscore').textContent = 'BEST: '+(highScore||0);
+        btn.textContent = '+300 XP EARNED!';
+        btn.style.borderColor = '#4f8';
+        btn.style.color = '#4f8';
+        buildUpgradeOptions();
+      },
+      fail: (err) => {
+        console.warn('Ad failed:', err);
+        btn.disabled = false;
+        btn.textContent = '▶ WATCH AD FOR 300 XP';
+      }
+    });
+  } else {
+    // Browser fallback — give XP instantly
+    bankedXP += 300;
+    player.xp += 300;
+    document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
+    btn.textContent = '+300 XP EARNED!';
+    btn.style.borderColor = '#4f8';
+    btn.style.color = '#4f8';
+    buildUpgradeOptions();
+  }
+}
 
 function watchAdAndRespawn() {
   const btn = document.getElementById('respawn-btn');
