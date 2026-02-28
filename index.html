@@ -375,6 +375,8 @@ const PLAYER_SPEED = 2.2;
 let state = 'start';
 let player, enemies, bullets, xpOrbs, particles;
 let wave, score, totalXP, bankedXP, highScore, highestWave;
+let powerUps = [];
+let powerUpSpawnCount = 0;
 let joystick = { active:false, startX:0, startY:0, dx:0, dy:0 };
 let lastTime = 0;
 let shootTimer = 0;
@@ -402,6 +404,10 @@ function createPlayer() {
     speed: PLAYER_SPEED,
     invincible: 0,
     dead: false,
+    activePowerUp: null,
+    powerUpTimer: null,
+    rapidFire: false,
+    shield: false,
   };
 }
 
@@ -450,6 +456,10 @@ function spawnEnemy(type) {
     shootTimer: 60 + Math.random()*80,
     invincible: 0,
     dead: false,
+    activePowerUp: null,
+    powerUpTimer: null,
+    rapidFire: false,
+    shield: false,
   };
 }
 
@@ -562,17 +572,31 @@ function initGame() {
   bullets = [];
   xpOrbs = [];
   particles = [];
+  powerUps = [];
   wave = 1;
   score = 0;
   totalXP = 0;
   bankedXP = 0;
   waveTimer = 0;
   shootTimer = 0;
+  powerUpSpawnCount = 0;
   if (highScore === undefined) highScore = 0;
   spawnWave();
 }
 
 function spawnWave() {
+  powerUpSpawnCount = 0; // reset per wave
+  // Schedule random power-up drops (0, 1, or 2 per wave)
+  const puCount = Math.floor(Math.random() * 3); // 0–2
+  for (let i = 0; i < puCount; i++) {
+    const delay = 3000 + Math.random() * 12000; // 3–15 seconds into wave
+    setTimeout(() => {
+      if (state === 'playing' && powerUpSpawnCount < 2) {
+        spawnPowerUp();
+        powerUpSpawnCount++;
+      }
+    }, delay);
+  }
   const count = 2 + Math.floor(wave*1.5);
   for (let i=0;i<count;i++) {
     let type = 'basic';
@@ -582,6 +606,115 @@ function spawnWave() {
     else if (wave >= 4 && r < 0.50) type = 'shooter';
     setTimeout(()=>enemies.push(spawnEnemy(type)), i*500);
   }
+}
+
+// ─── POWER-UP SYSTEM ─────────────────────────────────────────────────────────
+const POWERUP_TYPES = [
+  { id: 'speed',   label: 'SPEED BOOST',   color: '#00eeff', icon: '▲', duration: 600 },
+  { id: 'rapid',   label: 'RAPID FIRE',    color: '#ff9900', icon: '★', duration: 600 },
+  { id: 'shield',  label: 'SHIELD',        color: '#44ff88', icon: '◈', duration: 600 },
+];
+
+function spawnPowerUp() {
+  const type = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+  const margin = 40;
+  powerUps.push({
+    x: ARENA.x + margin + Math.random() * (ARENA.w - margin*2),
+    y: ARENA.y + margin + Math.random() * (ARENA.h - margin*2),
+    r: 14,
+    type: type.id,
+    color: type.color,
+    icon: type.icon,
+    label: type.label,
+    life: 480, // 8 seconds to pick up before it disappears
+    pulse: 0,
+  });
+}
+
+function activatePowerUp(type) {
+  // Clear any existing same power-up
+  if (player.activePowerUp === type) {
+    clearTimeout(player.powerUpTimer);
+  }
+  player.activePowerUp = type;
+  const def = POWERUP_TYPES.find(p => p.id === type);
+  showWarning(def.label + ' ACTIVE!');
+
+  // Apply effect
+  if (type === 'speed') {
+    player.speed = PLAYER_SPEED * 1.10;
+  } else if (type === 'rapid') {
+    player.rapidFire = true;
+  } else if (type === 'shield') {
+    player.shield = true;
+  }
+
+  // Expire after 10 seconds (600 frames at 60fps)
+  player.powerUpTimer = setTimeout(() => {
+    expirePowerUp(type);
+  }, 10000);
+}
+
+function expirePowerUp(type) {
+  if (type === 'speed') player.speed = PLAYER_SPEED;
+  if (type === 'rapid') player.rapidFire = false;
+  if (type === 'shield') player.shield = false;
+  if (player.activePowerUp === type) player.activePowerUp = null;
+  showWarning(POWERUP_TYPES.find(p=>p.id===type).label + ' EXPIRED');
+}
+
+function drawPowerUps() {
+  const t = Date.now() / 1000;
+  for (let pu of powerUps) {
+    const pulse = 0.7 + 0.3 * Math.sin(t * 4);
+    ctx.save();
+    // Outer glow ring
+    ctx.beginPath();
+    ctx.arc(pu.x, pu.y, pu.r * 1.6 * pulse, 0, Math.PI*2);
+    ctx.strokeStyle = pu.color;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.3 * pulse;
+    ctx.stroke();
+    // Inner filled circle
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.arc(pu.x, pu.y, pu.r, 0, Math.PI*2);
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fill();
+    ctx.strokeStyle = pu.color;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = pu.color;
+    ctx.stroke();
+    // Icon
+    ctx.fillStyle = pu.color;
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 0;
+    ctx.fillText(pu.icon, pu.x, pu.y);
+    // Label above
+    ctx.font = '7px "Press Start 2P", monospace';
+    ctx.globalAlpha = 0.7;
+    ctx.fillText(pu.label, pu.x, pu.y - pu.r - 8);
+    ctx.restore();
+  }
+}
+
+function drawShield() {
+  if (!player.shield) return;
+  const t = Date.now() / 1000;
+  const pulse = 0.85 + 0.15 * Math.sin(t * 6);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.r * 1.7 * pulse, 0, Math.PI*2);
+  ctx.strokeStyle = '#44ff88';
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = '#44ff88';
+  ctx.globalAlpha = 0.6;
+  ctx.stroke();
+  ctx.restore();
 }
 
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
@@ -603,7 +736,8 @@ function update(dt) {
 
   // Auto-shoot from gun sides
   shootTimer++;
-  if (shootTimer > 18) {
+  const shootThreshold = player.rapidFire ? 11 : 18;
+  if (shootTimer > shootThreshold) {
     shootTimer = 0;
     for (let i=0;i<player.sides;i++) {
       if (player.weapons[i] === 'gun') {
@@ -714,6 +848,13 @@ function update(dt) {
         if (weapon === 'spike') {
           // Player kills with spike!
           killEnemy(e); sfxSpikeKill();
+        } else if (player.shield) {
+          // Shield absorbs melee hit
+          player.shield = false;
+          player.activePowerUp = null;
+          showWarning('SHIELD BROKEN!');
+          spawnParticles(player.x, player.y, '#44ff88', 16);
+          player.invincible = 60;
         } else {
           // Player gets hit
           playerHit();
@@ -743,9 +884,30 @@ function update(dt) {
     if (dist(b, player) < b.r+player.r && player.invincible <= 0) {
       b.life = 0;
       spawnParticles(b.x, b.y, b.color, 4);
-      playerHit();
+      if (player.shield) {
+        // Shield absorbs the hit — flash and break shield
+        player.shield = false;
+        player.activePowerUp = null;
+        showWarning('SHIELD BROKEN!');
+        spawnParticles(player.x, player.y, '#44ff88', 16);
+      } else {
+        playerHit();
+      }
     }
   }
+
+  // Power-ups — update & collect
+  for (let pu of powerUps) {
+    pu.life--;
+    const d = dist(pu, player);
+    if (d < pu.r + player.r) {
+      // Collected!
+      activatePowerUp(pu.type);
+      spawnParticles(pu.x, pu.y, pu.color, 12);
+      pu.life = 0;
+    }
+  }
+  powerUps = powerUps.filter(pu => pu.life > 0);
 
   // XP orbs
   for (let o of xpOrbs) {
@@ -839,6 +1001,17 @@ function updateHUD() {
   document.getElementById('hud-xp').textContent = Math.floor(player.xp);
   document.getElementById('hud-shape').textContent = player.shape.toUpperCase();
   document.getElementById('hud-wave').textContent = wave;
+  // Show active power-up in warning bar if active
+  if (player.activePowerUp && warningTimer <= 0) {
+    const def = POWERUP_TYPES.find(p => p.id === player.activePowerUp);
+    if (def) {
+      const el = document.getElementById('hud-warning');
+      el.textContent = def.icon + ' ' + def.label + ' ACTIVE';
+      el.style.color = def.color;
+    }
+  } else if (!player.activePowerUp) {
+    document.getElementById('hud-warning').style.color = '#e05050';
+  }
 }
 
 // ─── DRAW ─────────────────────────────────────────────────────────────────────
@@ -863,6 +1036,9 @@ function draw() {
       ctx.fill();
     }
   }
+
+  // Power-ups
+  drawPowerUps();
 
   // XP Orbs
   for (let o of xpOrbs) {
@@ -1294,8 +1470,10 @@ function continueGame() {
   const savedSides = player.sides;
   const savedWeapons = player.weapons.slice();
   const savedWeaponCostMult = player.weaponCostMult || 1;
+  // Clear any active power-up timers
+  if (player.powerUpTimer) clearTimeout(player.powerUpTimer);
   // Full reset
-  enemies = []; bullets = []; xpOrbs = []; particles = [];
+  enemies = []; bullets = []; xpOrbs = []; particles = []; powerUps = []; powerUpSpawnCount = 0;
   wave = 1; score = 0; waveTimer = 0; shootTimer = 0;
   // Restore player with upgrades
   player = createPlayer();
