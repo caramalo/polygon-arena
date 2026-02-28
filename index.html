@@ -5,6 +5,64 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Polygon Rampage</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, push, query, orderByChild, limitToLast, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDAvJDeXr3DJhCD2bOiUplSjbZmKjXkOCo",
+    authDomain: "polygon-rampage.firebaseapp.com",
+    databaseURL: "https://polygon-rampage-default-rtdb.firebaseio.com",
+    projectId: "polygon-rampage",
+    storageBucket: "polygon-rampage.firebasestorage.app",
+    messagingSenderId: "1073453912855",
+    appId: "1:1073453912855:web:9cd387b6cc91fccec39d52"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // Submit a score to Firebase
+  window.submitScore = function(name, score, wave) {
+    const scoresRef = ref(db, 'scores');
+    push(scoresRef, {
+      name: name,
+      score: score,
+      wave: wave,
+      ts: Date.now()
+    });
+  };
+
+  // Fetch top 5 scores and render leaderboard
+  window.loadLeaderboard = function() {
+    const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(5));
+    onValue(scoresRef, (snapshot) => {
+      const entries = [];
+      snapshot.forEach(child => entries.push(child.val()));
+      entries.sort((a, b) => b.score - a.score);
+      renderLeaderboard(entries);
+    });
+  };
+
+  function renderLeaderboard(entries) {
+    const el = document.getElementById('leaderboard-list');
+    if (!el) return;
+    if (entries.length === 0) {
+      el.innerHTML = '<div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">NO SCORES YET — BE THE FIRST!</div>';
+      return;
+    }
+    const medals = ['🥇','🥈','🥉','4.','5.'];
+    el.innerHTML = entries.map((e, i) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #1a1a2e;">
+        <span style="color:#f0c040;font-size:0.38rem;min-width:1.5rem;">${medals[i]}</span>
+        <span style="color:#ccc;font-size:0.38rem;flex:1;margin-left:0.4rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.name}</span>
+        <span style="color:#fff;font-size:0.38rem;margin-left:0.5rem;">${Math.floor(e.score)}</span>
+        <span style="color:#555;font-size:0.3rem;margin-left:0.5rem;">W${e.wave}</span>
+      </div>
+    `).join('');
+  }
+</script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -295,6 +353,16 @@
     <div style="height:1.5rem;"></div>
   </div>
 
+  <!-- Leaderboard Screen -->
+  <div class="overlay" id="leaderboard-screen" style="display:none;">
+    <h2 style="font-size:0.8rem;letter-spacing:0.15em;margin-bottom:0.5rem;">🏆 TOP 5 ALL TIME</h2>
+    <div id="leaderboard-list" style="width:82%;max-width:320px;margin-bottom:1.5rem;min-height:120px;">
+      <div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">LOADING...</div>
+    </div>
+    <div style="color:#555;font-size:0.34rem;letter-spacing:0.1em;margin-bottom:1rem;text-align:center;">YOUR BEST: <span id="lb-your-best" style="color:#f0c040;">0</span></div>
+    <button class="btn accent" onclick="closeleaderboard()">BACK</button>
+  </div>
+
   <!-- Upgrade Screen -->
   <div class="overlay" id="upgrade-screen">
     <h2>SHAPE DESTROYED</h2>
@@ -309,6 +377,7 @@
     </div>
     <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="border-color:#4af;color:#4af;margin-bottom:0.3rem;">▶ WATCH AD FOR 300 XP</button>
     <button class="btn accent" id="respawn-btn" onclick="watchAdAndRespawn()">▶ WATCH AD TO RESPAWN</button>
+    <button class="btn" onclick="showLeaderboard()" style="font-size:0.5rem;border-color:#f0c040;color:#f0c040;">🏆 VIEW LEADERBOARD</button>
   </div>
 
   <!-- XP Ad Overlay -->
@@ -967,6 +1036,8 @@ function playerHit() {
     bankedXP = player.xp;
     if (score > (highScore || 0)) highScore = score;
     if (wave > (highestWave || 0)) highestWave = wave;
+    // Submit to global leaderboard if it's a new personal best
+    if (score > 0) submitScoreToBoard(score, wave);
     setTimeout(showUpgradeScreen, 600);
     state = 'upgrading';
   }
@@ -1318,6 +1389,49 @@ function refreshUpgradePreview() {
   for(let i=0;i<player.sides;i++){
     if(player.weapons[i]) drawWeaponOnPlayer(pctx,45,45,0,i,player.sides,28,player.weapons[i],i===0);
   }
+}
+
+// ─── LEADERBOARD ─────────────────────────────────────────────────────────────
+let playerName = null; // cached name for this session
+
+function getPlayerName(callback) {
+  // On TikTok: pull username from SDK
+  if (window.TTMinis && TTMinis.user && TTMinis.user.getInfo) {
+    TTMinis.user.getInfo({
+      success: (info) => {
+        playerName = info.nickname || info.openId || 'PLAYER';
+        callback(playerName);
+      },
+      fail: () => promptPlayerName(callback)
+    });
+  } else {
+    // Browser fallback: ask for name once per session
+    if (playerName) { callback(playerName); return; }
+    promptPlayerName(callback);
+  }
+}
+
+function promptPlayerName(callback) {
+  const name = prompt('ENTER YOUR NAME FOR THE LEADERBOARD:', '') || 'ANONYMOUS';
+  playerName = name.trim().substring(0, 16).toUpperCase() || 'ANONYMOUS';
+  callback(playerName);
+}
+
+function submitScoreToBoard(score, wave) {
+  if (!window.submitScore) return; // Firebase not loaded yet
+  getPlayerName((name) => {
+    window.submitScore(name, score, wave);
+  });
+}
+
+function showLeaderboard() {
+  document.getElementById('leaderboard-screen').style.display = 'flex';
+  document.getElementById('lb-your-best').textContent = Math.floor(highScore || 0);
+  if (window.loadLeaderboard) window.loadLeaderboard();
+}
+
+function closeleaderboard() {
+  document.getElementById('leaderboard-screen').style.display = 'none';
 }
 
 // ─── AD SYSTEM ───────────────────────────────────────────────────────────────
