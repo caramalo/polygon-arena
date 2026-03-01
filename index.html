@@ -23,18 +23,11 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // Submit a score to Firebase
   window.submitScore = function(name, score, wave) {
     const scoresRef = ref(db, 'scores');
-    push(scoresRef, {
-      name: name,
-      score: score,
-      wave: wave,
-      ts: Date.now()
-    });
+    push(scoresRef, { name: name, score: score, wave: wave, ts: Date.now() });
   };
 
-  // Fetch top 5 scores and render leaderboard
   window.loadLeaderboard = function() {
     const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(5));
     onValue(scoresRef, (snapshot) => {
@@ -80,8 +73,6 @@
     height: 720px;
   }
   canvas { display: block; }
-
-  /* UI Overlays */
   .overlay {
     position: absolute;
     top: 0; left: 0;
@@ -123,178 +114,47 @@
     margin: 0.4em;
   }
   .btn:hover, .btn:active { background: #fff; color: #0a0a0f; }
-  .btn.accent {
-    border-color: #f0c040;
-    color: #f0c040;
-  }
+  .btn.accent { border-color: #f0c040; color: #f0c040; }
   .btn.accent:hover { background: #f0c040; color: #0a0a0f; }
-  .btn.disabled {
-    opacity: 0.3;
-    pointer-events: none;
-  }
-
-  #upgrade-screen {
-    display: none;
-  }
-  #upgrade-screen .xp-display {
-    font-size: 0.65rem;
-    color: #f0c040;
-    letter-spacing: 0.1em;
-    margin-bottom: 1.2rem;
-  }
-  #upgrade-screen h2 {
-    color: #fff;
-    font-size: 0.9rem;
-    letter-spacing: 0.15em;
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-    text-align: center;
-  }
-  #upgrade-screen .score-display {
-    color: #888;
-    font-size: 0.8rem;
-    letter-spacing: 0.15em;
-    margin-bottom: 2rem;
-  }
-  #upgrade-options {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    width: 80%;
-    max-width: 320px;
-    margin-bottom: 1.5rem;
-  }
-  .upgrade-btn {
-    background: none;
-    border: 1px solid #333;
-    color: #ccc;
-    font-family: 'Press Start 2P', 'Courier New', monospace;
-    font-size: 0.82rem;
-    letter-spacing: 0.1em;
-    padding: 0.7em 1em;
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.15s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+  .btn.disabled { opacity: 0.3; pointer-events: none; }
+  #upgrade-screen { display: none; }
+  #upgrade-screen .xp-display { font-size: 0.65rem; color: #f0c040; letter-spacing: 0.1em; margin-bottom: 1.2rem; }
+  #upgrade-screen h2 { color: #fff; font-size: 0.9rem; letter-spacing: 0.15em; margin-bottom: 0.5rem; text-transform: uppercase; text-align: center; }
+  #upgrade-screen .score-display { color: #888; font-size: 0.8rem; letter-spacing: 0.15em; margin-bottom: 2rem; }
+  #upgrade-options { display: flex; flex-direction: column; gap: 0.5rem; width: 80%; max-width: 320px; margin-bottom: 1.5rem; }
+  .upgrade-btn { background: none; border: 1px solid #333; color: #ccc; font-family: 'Press Start 2P', 'Courier New', monospace; font-size: 0.82rem; letter-spacing: 0.1em; padding: 0.7em 1em; cursor: pointer; text-align: left; transition: all 0.15s; display: flex; justify-content: space-between; align-items: center; }
   .upgrade-btn:hover:not(.disabled) { border-color: #f0c040; color: #f0c040; }
   .upgrade-btn.disabled { opacity: 0.25; pointer-events: none; }
   .upgrade-btn .cost { color: #f0c040; font-size: 0.75rem; }
   .upgrade-btn.disabled .cost { color: #555; }
-
-  #start-screen canvas-preview {
-    width: 80px; height: 80px;
-    margin-bottom: 1rem;
-  }
-
-  .shape-preview {
-    margin: 1rem 0 1.5rem;
-  }
-
-  #hud {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    pointer-events: none;
-    z-index: 5;
-    padding: 12px 14px 0;
-  }
-  #xp-bar-bg {
-    width: 100%;
-    height: 5px;
-    background: #1a1a2e;
-    border-radius: 3px;
-    margin-bottom: 6px;
-  }
-  #xp-bar {
-    height: 100%;
-    background: #f0c040;
-    border-radius: 3px;
-    width: 0%;
-    transition: width 0.1s;
-  }
-  #hud-info {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.5rem;
-    color: #888;
-    letter-spacing: 0.1em;
-  }
+  .shape-preview { margin: 1rem 0 1.5rem; }
+  #hud { position: absolute; top: 0; left: 0; right: 0; pointer-events: none; z-index: 5; padding: 12px 14px 0; }
+  #xp-bar-bg { width: 100%; height: 5px; background: #1a1a2e; border-radius: 3px; margin-bottom: 6px; }
+  #xp-bar { height: 100%; background: #f0c040; border-radius: 3px; width: 0%; transition: width 0.1s; }
+  #hud-info { display: flex; justify-content: space-between; font-size: 0.5rem; color: #888; letter-spacing: 0.1em; }
   #hud-info span { color: #ccc; }
-  @keyframes pulse {
-    0%,100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
-  }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
   #ad-countdown { animation: pulse 1s ease-in-out infinite; }
-
-  #hud-warning {
-    text-align: center;
-    color: #e05050;
-    font-size: 0.7rem;
-    letter-spacing: 0.15em;
-    height: 1em;
-    margin-top: 2px;
-  }
-
-  /* Joystick */
-  #joystick-zone {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 5;
-    touch-action: none;
-    pointer-events: all;
-  }
-  #joystick-base {
-    position: absolute;
-    width: 100px; height: 100px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.06);
-    border: 1.5px solid rgba(255,255,255,0.12);
-    display: none;
-    transform: translate(-50%,-50%);
-    pointer-events: none;
-  }
-  #joystick-stick {
-    position: absolute;
-    width: 44px; height: 44px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.18);
-    border: 1.5px solid rgba(255,255,255,0.4);
-    transform: translate(-50%,-50%);
-    pointer-events: none;
-  }
+  #hud-warning { text-align: center; color: #e05050; font-size: 0.7rem; letter-spacing: 0.15em; height: 1em; margin-top: 2px; }
+  #joystick-zone { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; touch-action: none; pointer-events: all; }
+  #joystick-base { position: absolute; width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.12); display: none; transform: translate(-50%,-50%); pointer-events: none; }
+  #joystick-stick { position: absolute; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4); transform: translate(-50%,-50%); pointer-events: none; left: 50%; top: 50%; }
 </style>
 </head>
 <body>
-<!-- ═══════════════════════════════════════════════════════════════
-     TIKTOK MINI GAME SDK — loads async so game always works in browser
-     When you go live: replace YOUR_CLIENT_KEY_HERE with your real key
-     from https://developers.tiktok.com/apps/
-═══════════════════════════════════════════════════════════════ -->
 <script>
-  // Load TikTok SDK asynchronously — if it fails (e.g. in Chrome), game still runs
   (function() {
     var s = document.createElement('script');
     s.src = 'https://developers.tiktok.com/js/minis.js';
     s.async = true;
-    s.onload = function() {
-      if (window.TTMinis) {
-        TTMinis.game.init({ clientKey: 'YOUR_CLIENT_KEY_HERE' });
-      }
-    };
-    s.onerror = function() {
-      // SDK unavailable (normal in browser) — game runs fine without it
-      console.log('TikTok SDK not available — running in browser mode');
-    };
+    s.onload = function() { if (window.TTMinis) TTMinis.game.init({ clientKey: 'YOUR_CLIENT_KEY_HERE' }); };
+    s.onerror = function() { console.log('TikTok SDK not available — running in browser mode'); };
     document.head.appendChild(s);
   })();
 </script>
 <div id="game-container">
   <canvas id="gameCanvas" width="480" height="720"></canvas>
 
-  <!-- HUD -->
   <div id="hud">
     <div id="xp-bar-bg"><div id="xp-bar"></div></div>
     <div id="hud-info">
@@ -305,55 +165,36 @@
     <div id="hud-warning"></div>
   </div>
 
-  <!-- Start Screen -->
   <div class="overlay" id="start-screen" style="justify-content:flex-start;padding-top:1.5rem;overflow-y:auto;">
     <h1>POLYGON<br>RAMPAGE</h1>
     <p class="subtitle" style="margin-bottom:1rem;">HOW MANY WAVES CAN YOU SURVIVE?</p>
     <canvas id="preview-canvas" width="110" height="110" style="margin-bottom:1rem;"></canvas>
     <button class="btn accent" onclick="startGame()" style="margin-bottom:1.4rem;">START GAME</button>
-
     <div style="width:82%;max-width:340px;border-top:1px solid #222;padding-top:1.1rem;display:flex;flex-direction:column;gap:0.85rem;">
-
       <div style="text-align:center;">
         <div style="color:#f0c040;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">MOVEMENT</div>
-        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
-          PRESS &amp; DRAG ANYWHERE ON THE LOWER<br>HALF OF THE SCREEN TO MOVE &amp; AIM.<br>YOUR SHAPE ALWAYS FACES YOUR FINGER.
-        </div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">PRESS &amp; DRAG ANYWHERE ON THE LOWER<br>HALF OF THE SCREEN TO MOVE &amp; AIM.<br>YOUR SHAPE ALWAYS FACES YOUR FINGER.</div>
       </div>
-
       <div style="text-align:center;">
         <div style="color:#e82222;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">THE RED BLASTER</div>
-        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
-          THE RED SQUARE LEADS YOUR SHAPE.<br>IT AUTO-FIRES BULLETS IN THE DIRECTION<br>YOU MOVE. KEEP ENEMIES IN FRONT.
-        </div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">THE RED SQUARE LEADS YOUR SHAPE.<br>IT AUTO-FIRES BULLETS IN THE DIRECTION<br>YOU MOVE. KEEP ENEMIES IN FRONT.</div>
       </div>
-
       <div style="text-align:center;">
         <div style="color:#8899cc;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">THE BLUE SPIKE</div>
-        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
-          UNLOCK THE SPIKE TO INSTANTLY KILL<br>ENEMIES ON CONTACT — BUT ONLY THE<br>TIP COUNTS. WRONG SIDE = YOU TAKE DAMAGE.
-        </div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">UNLOCK THE SPIKE TO INSTANTLY KILL<br>ENEMIES ON CONTACT — BUT ONLY THE<br>TIP COUNTS. WRONG SIDE = YOU TAKE DAMAGE.</div>
       </div>
-
       <div style="text-align:center;">
         <div style="color:#f84;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">ENEMIES TO WATCH</div>
-        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
-          VAMPIRES DRAIN YOUR XP ON CONTACT.<br>THIEVES RACE TO STEAL XP ORBS<br>BEFORE YOU CAN COLLECT THEM.
-        </div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">VAMPIRES DRAIN YOUR XP ON CONTACT.<br>THIEVES RACE TO STEAL XP ORBS<br>BEFORE YOU CAN COLLECT THEM.</div>
       </div>
-
       <div style="text-align:center;">
         <div style="color:#a4f;font-size:0.42rem;letter-spacing:0.18em;margin-bottom:0.35rem;">EVOLVE YOUR SHAPE</div>
-        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">
-          SPEND XP TO EVOLVE — MORE SIDES<br>MEANS MORE WEAPON SLOTS.<br>SURVIVE LONG ENOUGH AND YOU MAY<br>UNLOCK SHAPES BEYOND THE HEXAGON...
-        </div>
+        <div style="color:#555;font-size:0.34rem;letter-spacing:0.09em;line-height:1.9em;">SPEND XP TO EVOLVE — MORE SIDES<br>MEANS MORE WEAPON SLOTS.<br>SURVIVE LONG ENOUGH AND YOU MAY<br>UNLOCK SHAPES BEYOND THE HEXAGON...</div>
       </div>
-
     </div>
     <div style="height:1.5rem;"></div>
   </div>
 
-  <!-- Leaderboard Screen -->
   <div class="overlay" id="leaderboard-screen" style="display:none;">
     <h2 style="font-size:0.8rem;letter-spacing:0.15em;margin-bottom:0.5rem;">🏆 TOP 5 ALL TIME</h2>
     <div id="leaderboard-list" style="width:82%;max-width:320px;margin-bottom:1.5rem;min-height:120px;">
@@ -363,7 +204,6 @@
     <button class="btn accent" onclick="closeleaderboard()">BACK</button>
   </div>
 
-  <!-- Upgrade Screen -->
   <div class="overlay" id="upgrade-screen">
     <h2>SHAPE DESTROYED</h2>
     <div class="score-display" id="upgrade-score"></div>
@@ -377,14 +217,10 @@
     <button class="btn" onclick="showLeaderboard()" style="font-size:0.5rem;border-color:#f0c040;color:#f0c040;">🏆 VIEW LEADERBOARD</button>
   </div>
 
-  <!-- XP Ad Overlay -->
   <div id="xp-ad-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:20;flex-direction:column;align-items:center;justify-content:center;font-family:'Press Start 2P','Courier New',monospace;">
     <div style="color:#888;font-size:0.55rem;letter-spacing:0.2em;margin-bottom:1rem;">ADVERTISEMENT</div>
     <div style="width:280px;height:200px;background:#111;border:1px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:1.5rem;position:relative;">
-      <div style="color:#555;font-size:0.6rem;letter-spacing:0.15em;text-align:center;line-height:2em;">
-        YOUR AD HERE<br>
-        <span style="font-size:0.5rem;color:#333;">TikTok Ad Unit</span>
-      </div>
+      <div style="color:#555;font-size:0.6rem;letter-spacing:0.15em;text-align:center;line-height:2em;">YOUR AD HERE<br><span style="font-size:0.5rem;color:#333;">TikTok Ad Unit</span></div>
       <div style="position:absolute;top:6px;right:10px;color:#333;font-size:0.5rem;">AD</div>
     </div>
     <div style="display:flex;align-items:center;gap:0.8rem;">
@@ -393,15 +229,10 @@
     </div>
   </div>
 
-  <!-- Respawn Ad Overlay -->
   <div id="ad-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:20;flex-direction:column;align-items:center;justify-content:center;font-family:'Courier New',monospace;">
     <div style="color:#888;font-size:0.7rem;letter-spacing:0.2em;margin-bottom:1rem;">ADVERTISEMENT</div>
     <div style="width:280px;height:200px;background:#111;border:1px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:1.5rem;position:relative;">
-      <!-- Mock ad creative — replace with real ad SDK slot -->
-      <div style="color:#555;font-size:0.75rem;letter-spacing:0.15em;text-align:center;line-height:2em;">
-        YOUR AD HERE<br>
-        <span style="font-size:0.6rem;color:#333;">TikTok Ad Unit</span>
-      </div>
+      <div style="color:#555;font-size:0.75rem;letter-spacing:0.15em;text-align:center;line-height:2em;">YOUR AD HERE<br><span style="font-size:0.6rem;color:#333;">TikTok Ad Unit</span></div>
       <div style="position:absolute;top:6px;right:10px;color:#333;font-size:0.6rem;">AD</div>
     </div>
     <div style="display:flex;align-items:center;gap:0.8rem;">
@@ -410,7 +241,6 @@
     </div>
   </div>
 
-  <!-- Joystick -->
   <div id="joystick-zone">
     <div id="joystick-base">
       <div id="joystick-stick"></div>
@@ -423,14 +253,12 @@
 const W = 480, H = 720;
 const ARENA = { x: 20, y: 70, w: W-40, h: H-90 };
 const SHAPES = ['triangle','square','pentagon','hexagon'];
-const SHAPES_SECRET = ['heptagon','octagon']; // unlocked at wave 10+
+const SHAPES_SECRET = ['heptagon','octagon'];
 const SHAPE_SIDES = { triangle:3, square:4, pentagon:5, hexagon:6, heptagon:7, octagon:8 };
 const SHAPE_COLORS = { triangle:'#4af', square:'#4f8', pentagon:'#f84', hexagon:'#a4f', heptagon:'#ff4af', octagon:'#ffd700' };
 const ENEMY_COLORS = ['#f44','#f84','#e4f','#f4a','#44f'];
 const XP_TO_NEXT_LEVEL = 100;
-// Shape evolution costs: 500, 1000, 2000 (doubles each time)
-const SHAPE_EVOLVE_COSTS = [500, 1000, 2000, 3500, 6000]; // tri>sq>pent>hex>hept>oct
-// Weapon base costs — track dynamically on player object
+const SHAPE_EVOLVE_COSTS = [500, 1000, 2000, 3500, 6000];
 const BASE_GUN_COST = 40;
 const BASE_SPIKE_COST = 30;
 const BULLET_SPEED = 4.5;
@@ -449,7 +277,6 @@ let shootTimer = 0;
 let waveTimer = 0;
 let warningTimer = 0;
 
-// Canvas & ctx
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -459,14 +286,14 @@ function createPlayer() {
     x: W/2, y: H/2,
     shape: 'triangle',
     sides: 3,
-    angle: 0,         // direction player faces (radians)
+    angle: 0,
     r: 22,
     hp: 3,
     maxHp: 3,
     xp: 0,
     xpLevel: 0,
-    weapons: ['gun', null, null], // index 0 = front (angle), rest = other sides
-    weaponCostMult: 1, // doubles each time a weapon is purchased
+    weapons: ['gun', null, null],
+    weaponCostMult: 1,
     speed: PLAYER_SPEED,
     invincible: 0,
     dead: false,
@@ -477,7 +304,6 @@ function createPlayer() {
   };
 }
 
-// weapon at side index: angle offset = sideAngle(i)
 function sideAngle(player, i) {
   const sides = player.sides;
   const step = (Math.PI * 2) / sides;
@@ -485,7 +311,6 @@ function sideAngle(player, i) {
 }
 
 function weaponAtAngle(player, angle) {
-  // Returns which weapon is facing `angle` using unified getSideOutwardAngle
   let best = 0, bestDiff = Infinity;
   for (let i = 0; i < player.sides; i++) {
     const a = getSideOutwardAngle(player.angle, i, player.sides);
@@ -518,7 +343,7 @@ function spawnEnemy(type) {
     maxHp: sides * (1 + wave*0.3),
     xpValue: sides * 10 + wave*5,
     speed: 0.4 + Math.random()*0.3 + wave*0.06,
-    type, // 'basic','shooter','vampire','thief'
+    type,
     shootTimer: 60 + Math.random()*80,
     invincible: 0,
     dead: false,
@@ -583,9 +408,6 @@ function drawPolygon(ctx, x, y, sides, r, angle, fillColor, strokeColor, strokeW
 }
 
 // ─── SIDE NORMAL MATH ────────────────────────────────────────────────────────
-// player.angle = direction side 0 (original blaster) faces outward.
-// Side i faces outward at: player.angle + (2*PI/sides)*i
-// The polygon is drawn so this is always true.
 function getSideOutwardAngle(playerAngle, sideIdx, sides) {
   return playerAngle + (Math.PI * 2 / sides) * sideIdx;
 }
@@ -599,20 +421,16 @@ function getSideMidpoint(px, py, playerAngle, sideIdx, sides, r) {
 function drawWeaponOnPlayer(ctx, px, py, playerAngle, sideIdx, sides, r, weaponType, isOriginal) {
   const outAngle = getSideOutwardAngle(playerAngle, sideIdx, sides);
   const mid = getSideMidpoint(px, py, playerAngle, sideIdx, sides, r);
-
   ctx.save();
   ctx.translate(mid.x, mid.y);
   ctx.rotate(outAngle);
-
   if (weaponType === 'gun') {
     const sz = 14;
-    // Original blaster = red, extras = green
     ctx.fillStyle = isOriginal ? '#e82222' : '#22cc44';
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 1.5;
     ctx.fillRect(-sz/2, -sz/2, sz, sz);
     ctx.strokeRect(-sz/2, -sz/2, sz, sz);
-    // Barrel nub pointing outward
     ctx.fillStyle = isOriginal ? '#ff8888' : '#88ffaa';
     ctx.fillRect(sz/2 - 1, -3, 6, 6);
   } else if (weaponType === 'spike') {
@@ -651,11 +469,10 @@ function initGame() {
 }
 
 function spawnWave() {
-  powerUpSpawnCount = 0; // reset per wave
-  // Schedule random power-up drops (0, 1, or 2 per wave)
-  const puCount = Math.floor(Math.random() * 3); // 0–2
+  powerUpSpawnCount = 0;
+  const puCount = Math.floor(Math.random() * 3);
   for (let i = 0; i < puCount; i++) {
-    const delay = 3000 + Math.random() * 12000; // 3–15 seconds into wave
+    const delay = 3000 + Math.random() * 12000;
     setTimeout(() => {
       if (state === 'playing' && powerUpSpawnCount < 2) {
         spawnPowerUp();
@@ -692,30 +509,21 @@ function spawnPowerUp() {
     color: type.color,
     icon: type.icon,
     label: type.label,
-    life: 480, // 8 seconds to pick up before it disappears
+    life: 480,
     pulse: 0,
   });
 }
 
 function activatePowerUp(type) {
-  // Clear any existing same power-up
   if (player.activePowerUp === type) {
     clearTimeout(player.powerUpTimer);
   }
   player.activePowerUp = type;
   const def = POWERUP_TYPES.find(p => p.id === type);
   showWarning(def.label + ' ACTIVE!');
-
-  // Apply effect
-  if (type === 'speed') {
-    player.speed = PLAYER_SPEED * 1.10;
-  } else if (type === 'rapid') {
-    player.rapidFire = true;
-  } else if (type === 'shield') {
-    player.shield = true;
-  }
-
-  // Expire after 10 seconds (600 frames at 60fps)
+  if (type === 'speed') player.speed = PLAYER_SPEED * 1.10;
+  else if (type === 'rapid') player.rapidFire = true;
+  else if (type === 'shield') player.shield = true;
   player.powerUpTimer = setTimeout(() => {
     expirePowerUp(type);
   }, 10000);
@@ -734,14 +542,12 @@ function drawPowerUps() {
   for (let pu of powerUps) {
     const pulse = 0.7 + 0.3 * Math.sin(t * 4);
     ctx.save();
-    // Outer glow ring
     ctx.beginPath();
     ctx.arc(pu.x, pu.y, pu.r * 1.6 * pulse, 0, Math.PI*2);
     ctx.strokeStyle = pu.color;
     ctx.lineWidth = 2;
     ctx.globalAlpha = 0.3 * pulse;
     ctx.stroke();
-    // Inner filled circle
     ctx.globalAlpha = 0.9;
     ctx.beginPath();
     ctx.arc(pu.x, pu.y, pu.r, 0, Math.PI*2);
@@ -752,14 +558,12 @@ function drawPowerUps() {
     ctx.shadowBlur = 12;
     ctx.shadowColor = pu.color;
     ctx.stroke();
-    // Icon
     ctx.fillStyle = pu.color;
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowBlur = 0;
     ctx.fillText(pu.icon, pu.x, pu.y);
-    // Label above
     ctx.font = '7px "Press Start 2P", monospace';
     ctx.globalAlpha = 0.7;
     ctx.fillText(pu.label, pu.x, pu.y - pu.r - 8);
@@ -787,7 +591,6 @@ function drawShield() {
 function update(dt) {
   if (state !== 'playing') return;
 
-  // Move player via joystick
   if (joystick.active && (joystick.dx !== 0 || joystick.dy !== 0)) {
     const len = Math.sqrt(joystick.dx**2+joystick.dy**2);
     const nx = joystick.dx/len;
@@ -797,17 +600,14 @@ function update(dt) {
     player.y = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, player.y + ny*player.speed));
   }
 
-  // Decrement invincibility
   if (player.invincible > 0) player.invincible--;
 
-  // Auto-shoot from gun sides
   shootTimer++;
   const shootThreshold = player.rapidFire ? 16 : 28;
   if (shootTimer > shootThreshold) {
     shootTimer = 0;
     for (let i=0;i<player.sides;i++) {
       if (player.weapons[i] === 'gun') {
-        // Use same outward angle as weapon drawing
         const a = getSideOutwardAngle(player.angle, i, player.sides);
         const mid = getSideMidpoint(player.x, player.y, player.angle, i, player.sides, player.r);
         bullets.push({
@@ -816,12 +616,10 @@ function update(dt) {
           vy: Math.sin(a) * BULLET_SPEED,
           r: 5, color:'#f44', owner:'player', life:300, bounces:2
         });
-
       }
     }
   }
 
-  // Update bullets — player bullets bounce, enemy bullets die at walls
   for (let b of bullets) {
     b.x += b.vx; b.y += b.vy; b.life--;
     if (b.owner === 'player' && b.bounces > 0) {
@@ -836,17 +634,13 @@ function update(dt) {
         b.y = Math.max(ARENA.y, Math.min(ARENA.y + ARENA.h, b.y));
         bounced = true;
       }
-      if (bounced) {
-        b.bounces--;
-        spawnParticles(b.x, b.y, '#f88', 2);
-      }
+      if (bounced) { b.bounces--; spawnParticles(b.x, b.y, '#f88', 2); }
     } else if (b.x<ARENA.x||b.x>ARENA.x+ARENA.w||b.y<ARENA.y||b.y>ARENA.y+ARENA.h) {
       b.life = 0;
     }
   }
   bullets = bullets.filter(b=>b.life>0);
 
-  // Update enemies
   for (let e of enemies) {
     if (e.dead) continue;
     if (e.invincible > 0) e.invincible--;
@@ -857,7 +651,6 @@ function update(dt) {
     const nx = dx/d, ny = dy/d;
 
     if (e.type === 'thief') {
-      // Chase nearest xp orb
       let nearest = null, nearestD = Infinity;
       for (let o of xpOrbs) {
         const od = dist(e, o);
@@ -870,7 +663,7 @@ function update(dt) {
         e.y += (oy/ol)*e.speed*1.2;
         e.angle = Math.atan2(oy, ox);
         if (nearestD < e.r+nearest.r) {
-          nearest.life = 0; // stolen!
+          nearest.life = 0;
           spawnParticles(nearest.x, nearest.y, '#f0c040', 5);
           showWarning('XP STOLEN!');
         }
@@ -879,24 +672,20 @@ function update(dt) {
         e.y += ny*e.speed*0.5;
       }
     } else {
-      // Move toward player
       e.x += nx*e.speed;
       e.y += ny*e.speed;
       e.angle += 0.02;
     }
 
-    // Clamp to arena
     e.x = Math.max(ARENA.x+e.r, Math.min(ARENA.x+ARENA.w-e.r, e.x));
     e.y = Math.max(ARENA.y+e.r, Math.min(ARENA.y+ARENA.h-e.r, e.y));
 
-    // Enemy shooting
     if (e.type === 'shooter') {
       e.shootTimer--;
       if (e.shootTimer <= 0) {
         e.shootTimer = 140 - wave*4;
         if (e.shootTimer < 50) e.shootTimer = 50;
         const a = Math.atan2(dy, dx);
-        // small spread
         for (let s=-1;s<=1;s++) {
           const ba = a + s*0.2;
           bullets.push({
@@ -910,7 +699,6 @@ function update(dt) {
       }
     }
 
-    // Vampire drains XP on contact
     if (e.type === 'vampire' && d < e.r+player.r+5 && player.invincible <= 0) {
       const drain = Math.min(20, player.xp);
       player.xp -= drain;
@@ -923,31 +711,25 @@ function update(dt) {
       player.invincible = 60;
     }
 
-    // Collision with player
     if (d < e.r+player.r && e.type !== 'vampire' && e.type !== 'thief') {
       if (player.invincible <= 0) {
-        // Check which side of player was hit
-        const hitAngle = Math.atan2(dy, dx) + Math.PI; // angle from enemy to player face
+        const hitAngle = Math.atan2(dy, dx) + Math.PI;
         const weapon = weaponAtAngle(player, hitAngle);
         if (weapon === 'spike') {
-          // Player kills with spike!
           killEnemy(e); sfxSpikeKill();
         } else if (player.shield) {
-          // Shield absorbs melee hit
           player.shield = false;
           player.activePowerUp = null;
           showWarning('SHIELD BROKEN!');
           spawnParticles(player.x, player.y, '#44ff88', 16);
           player.invincible = 60;
         } else {
-          // Player gets hit
           playerHit();
         }
       }
     }
   }
 
-  // Player bullets vs enemies
   for (let b of bullets) {
     if (b.owner !== 'player') continue;
     for (let e of enemies) {
@@ -957,19 +739,17 @@ function update(dt) {
         e.hp -= 1 + wave*0.2;
         e.invincible = 8;
         spawnParticles(b.x, b.y, b.color, 4);
-        if (e.hp <= 0) { killEnemy(e); sfxBulletKill(); } else { /* hit */ }
+        if (e.hp <= 0) { killEnemy(e); sfxBulletKill(); }
       }
     }
   }
 
-  // Enemy bullets vs player
   for (let b of bullets) {
     if (b.owner !== 'enemy') continue;
     if (dist(b, player) < b.r+player.r && player.invincible <= 0) {
       b.life = 0;
       spawnParticles(b.x, b.y, b.color, 4);
       if (player.shield) {
-        // Shield absorbs the hit — flash and break shield
         player.shield = false;
         player.activePowerUp = null;
         showWarning('SHIELD BROKEN!');
@@ -980,12 +760,10 @@ function update(dt) {
     }
   }
 
-  // Power-ups — update & collect
   for (let pu of powerUps) {
     pu.life--;
     const d = dist(pu, player);
     if (d < pu.r + player.r) {
-      // Collected!
       activatePowerUp(pu.type);
       spawnParticles(pu.x, pu.y, pu.color, 12);
       pu.life = 0;
@@ -993,12 +771,10 @@ function update(dt) {
   }
   powerUps = powerUps.filter(pu => pu.life > 0);
 
-  // XP orbs
   for (let o of xpOrbs) {
     o.vx *= 0.96; o.vy *= 0.96;
     o.x += o.vx; o.y += o.vy;
     o.life--;
-    // Attract to player when close
     const od = dist(o, player);
     if (od < 80) {
       o.vx += (player.x-o.x)/od * 0.8;
@@ -1012,7 +788,6 @@ function update(dt) {
   }
   xpOrbs = xpOrbs.filter(o=>o.life>0);
 
-  // Particles
   for (let p of particles) {
     p.x += p.vx; p.y += p.vy;
     p.vx *= 0.94; p.vy *= 0.94;
@@ -1020,10 +795,8 @@ function update(dt) {
   }
   particles = particles.filter(p=>p.life>0);
 
-  // Clean dead enemies
   enemies = enemies.filter(e=>!e.dead);
 
-  // Wave complete?
   if (enemies.length === 0) {
     waveTimer++;
     if (waveTimer > 90) {
@@ -1033,11 +806,9 @@ function update(dt) {
     }
   }
 
-  // Warning decay
   if (warningTimer > 0) warningTimer--;
   else document.getElementById('hud-warning').textContent = '';
 
-  // Update HUD
   updateHUD();
 }
 
@@ -1051,7 +822,6 @@ function playerHit() {
     bankedXP = player.xp;
     if (score > (highScore || 0)) highScore = score;
     if (wave > (highestWave || 0)) highestWave = wave;
-    // Submit to global leaderboard if it's a new personal best
     if (score > 0) submitScoreToBoard(score, wave);
     setTimeout(showUpgradeScreen, 600);
     state = 'upgrading';
@@ -1087,7 +857,6 @@ function updateHUD() {
   document.getElementById('hud-xp').textContent = Math.floor(player.xp);
   document.getElementById('hud-shape').textContent = player.shape.toUpperCase();
   document.getElementById('hud-wave').textContent = wave;
-  // Show active power-up in warning bar if active
   if (player.activePowerUp && warningTimer <= 0) {
     const def = POWERUP_TYPES.find(p => p.id === player.activePowerUp);
     if (def) {
@@ -1103,17 +872,11 @@ function updateHUD() {
 // ─── DRAW ─────────────────────────────────────────────────────────────────────
 function draw() {
   ctx.clearRect(0,0,W,H);
-
-  // Background
   ctx.fillStyle = '#0a0a0f';
   ctx.fillRect(0,0,W,H);
-
-  // Arena border
   ctx.strokeStyle = '#1a1a2e';
   ctx.lineWidth = 2;
   ctx.strokeRect(ARENA.x, ARENA.y, ARENA.w, ARENA.h);
-
-  // Grid dots
   ctx.fillStyle = '#13131f';
   for (let gx=ARENA.x+30; gx<ARENA.x+ARENA.w; gx+=30) {
     for (let gy=ARENA.y+30; gy<ARENA.y+ARENA.h; gy+=30) {
@@ -1123,10 +886,8 @@ function draw() {
     }
   }
 
-  // Power-ups
   drawPowerUps();
 
-  // XP Orbs
   for (let o of xpOrbs) {
     const alpha = Math.min(1, o.life/30);
     ctx.save();
@@ -1140,7 +901,6 @@ function draw() {
     ctx.restore();
   }
 
-  // Particles
   for (let p of particles) {
     const alpha = p.life/p.maxLife;
     ctx.save();
@@ -1152,29 +912,19 @@ function draw() {
     ctx.restore();
   }
 
-  // Enemies
   for (let e of enemies) {
     if (e.dead) continue;
     const flash = e.invincible > 0 && Math.floor(e.invincible/4)%2===0;
-
-    // Health bar
     const bw = e.r*2.5;
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(e.x-bw/2, e.y-e.r-10, bw, 4);
     ctx.fillStyle = e.type==='vampire'?'#a44':e.type==='thief'?'#4af':e.color;
     ctx.fillRect(e.x-bw/2, e.y-e.r-10, bw*(e.hp/e.maxHp), 4);
-
-    // Special indicators
     let strokeColor = flash ? '#fff' : '#0a0a0f';
     let extraStroke = null;
     if (e.type==='vampire') extraStroke='#a44';
     if (e.type==='thief') extraStroke='#4af';
-
-    drawPolygon(ctx, e.x, e.y, e.sides, e.r, e.angle,
-      flash?'#fff':e.color+'cc',
-      extraStroke || strokeColor, 2);
-
-    // Type label
+    drawPolygon(ctx, e.x, e.y, e.sides, e.r, e.angle, flash?'#fff':e.color+'cc', extraStroke || strokeColor, 2);
     if (e.type!=='basic' && e.type!=='shooter') {
       ctx.save();
       ctx.globalAlpha = 0.7;
@@ -1186,7 +936,6 @@ function draw() {
     }
   }
 
-  // Bullets
   for (let b of bullets) {
     ctx.save();
     ctx.shadowBlur = 8;
@@ -1198,40 +947,31 @@ function draw() {
     ctx.restore();
   }
 
-  // Player
   if (!player.dead) {
     const flash = player.invincible > 0 && Math.floor(player.invincible/6)%2===0;
     const pcolor = SHAPE_COLORS[player.shape];
-
-    // Shadow/glow
     ctx.save();
     ctx.shadowBlur = 20;
     ctx.shadowColor = pcolor;
     drawPolygon(ctx, player.x, player.y, player.sides, player.r, player.angle + Math.PI/2 - Math.PI/player.sides,
       flash?'rgba(255,255,255,0.3)':pcolor+'44', null, 0);
     ctx.restore();
-
-    // Main shape
     drawPolygon(ctx, player.x, player.y, player.sides, player.r, player.angle + Math.PI/2 - Math.PI/player.sides,
       flash?'#fff':pcolor+'cc', '#fff', 2);
-
-    // Weapons
     for (let i=0; i<player.sides; i++) {
       if (player.weapons[i]) {
         drawWeaponOnPlayer(ctx, player.x, player.y, player.angle, i, player.sides, player.r, player.weapons[i], i===0);
       }
     }
-
-    // HP dots
     for (let i=0;i<player.maxHp;i++) {
       ctx.beginPath();
       ctx.arc(player.x - (player.maxHp-1)*6 + i*12, player.y - player.r - 14, 4, 0, Math.PI*2);
       ctx.fillStyle = i < player.hp ? pcolor : '#333';
       ctx.fill();
     }
+    drawShield();
   }
 
-  // Wave clear notification
   if (waveTimer > 0 && waveTimer < 60) {
     ctx.save();
     ctx.globalAlpha = Math.min(1, waveTimer/20) * Math.min(1,(60-waveTimer)/20);
@@ -1259,7 +999,6 @@ function showUpgradeScreen() {
   document.getElementById('upgrade-screen').style.display = 'flex';
   document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
   document.getElementById('upgrade-score').textContent = 'SCORE: '+score+' | WAVE: '+wave;
-  // Show secret unlock hint if close to wave 10
   const hw = highestWave || wave;
   if (hw >= 8 && player.shape !== 'heptagon' && player.shape !== 'octagon') {
     const hint = document.getElementById('secret-hint');
@@ -1278,8 +1017,6 @@ function showUpgradeScreen() {
     }
   }
   document.getElementById('upgrade-highscore').textContent = 'BEST: '+(highScore||0);
-
-  // Preview canvas
   const pc = document.getElementById('upgrade-preview');
   const pctx = pc.getContext('2d');
   pctx.clearRect(0,0,90,90);
@@ -1288,15 +1025,10 @@ function showUpgradeScreen() {
   for (let i=0;i<player.sides;i++) {
     if (player.weapons[i]) drawWeaponOnPlayer(pctx, 45, 45, 0, i, player.sides, 28, player.weapons[i], i===0);
   }
-
-  // Reset buttons
   const rb = document.getElementById('respawn-btn');
-  if (rb) { rb.disabled = false; rb.textContent = '▶ WATCH AD TO RESPAWN'; }
+  if (rb) { rb.disabled = false; rb.textContent = '▶ RESPAWN'; }
   const xpb = document.getElementById('xp-ad-btn');
-  if (xpb) { xpb.disabled = false; xpb.textContent = '▶ WATCH AD FOR +300 XP'; xpb.style.borderColor='#22cc44'; xpb.style.color='#22cc44'; }
-  // Reset XP ad button for fresh use each death
-  const xb = document.getElementById('xp-ad-btn');
-  if (xb) { xb.disabled = false; xb.textContent = '▶ WATCH AD FOR +300 XP'; xb.style.opacity = '1'; }
+  if (xpb) { xpb.disabled = false; xpb.textContent = '▶ WATCH AD FOR +300 XP'; xpb.style.borderColor='#22cc44'; xpb.style.color='#22cc44'; xpb.style.opacity='1'; }
   buildUpgradeOptions();
 }
 
@@ -1305,15 +1037,12 @@ function buildUpgradeOptions() {
   container.innerHTML = '';
   const xp = bankedXP;
   const mult = player.weaponCostMult || 1;
-
-  // Evolve shape — normal path
   const allShapes = [...SHAPES, ...SHAPES_SECRET];
   const shapeIdx = allShapes.indexOf(player.shape);
   const isHexagon = player.shape === 'hexagon';
   const isHeptagon = player.shape === 'heptagon';
   const waveReached = highestWave || wave;
 
-  // Normal evolution (triangle through hexagon)
   if (shapeIdx < SHAPES.length - 1) {
     const cost = SHAPE_EVOLVE_COSTS[shapeIdx];
     const nextShape = SHAPES[shapeIdx + 1];
@@ -1327,9 +1056,8 @@ function buildUpgradeOptions() {
     ));
   }
 
-  // SECRET: Heptagon unlocks if player is hexagon AND reached wave 10
   if (isHexagon && waveReached >= 10) {
-    const cost = SHAPE_EVOLVE_COSTS[4]; // 3500
+    const cost = SHAPE_EVOLVE_COSTS[4];
     const canAfford = xp >= cost;
     const btn = makeUpgradeBtn(
       `★ SECRET: EVOLVE TO HEPTAGON  (+1 SLOT)`, cost, canAfford,
@@ -1342,9 +1070,8 @@ function buildUpgradeOptions() {
     container.appendChild(btn);
   }
 
-  // SECRET: Octagon unlocks if player is heptagon AND reached wave 10
   if (isHeptagon && waveReached >= 20) {
-    const cost = SHAPE_EVOLVE_COSTS[4]; // 6000
+    const cost = SHAPE_EVOLVE_COSTS[4];
     const canAfford = xp >= cost;
     const btn = makeUpgradeBtn(
       `★ SECRET: EVOLVE TO OCTAGON  (+1 SLOT)`, cost, canAfford,
@@ -1357,7 +1084,6 @@ function buildUpgradeOptions() {
     container.appendChild(btn);
   }
 
-  // Add weapon to empty slots
   for (let i=0; i<player.sides; i++) {
     if (!player.weapons[i]) {
       const sideName = getSideName(i, player.sides);
@@ -1375,8 +1101,6 @@ function buildUpgradeOptions() {
       ));
     }
   }
-
-  // Update XP display
   document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
 }
 
@@ -1407,20 +1131,15 @@ function refreshUpgradePreview() {
 }
 
 // ─── LEADERBOARD ─────────────────────────────────────────────────────────────
-let playerName = null; // cached name for this session
+let playerName = null;
 
 function getPlayerName(callback) {
-  // On TikTok: pull username from SDK
   if (window.TTMinis && TTMinis.user && TTMinis.user.getInfo) {
     TTMinis.user.getInfo({
-      success: (info) => {
-        playerName = info.nickname || info.openId || 'PLAYER';
-        callback(playerName);
-      },
+      success: (info) => { playerName = info.nickname || info.openId || 'PLAYER'; callback(playerName); },
       fail: () => promptPlayerName(callback)
     });
   } else {
-    // Browser fallback: ask for name once per session
     if (playerName) { callback(playerName); return; }
     promptPlayerName(callback);
   }
@@ -1433,16 +1152,14 @@ function promptPlayerName(callback) {
 }
 
 function submitScoreToBoard(score, wave) {
-  if (!window.submitScore) return; // Firebase not loaded yet
-  getPlayerName((name) => {
-    window.submitScore(name, score, wave);
-  });
+  if (!window.submitScore) return;
+  getPlayerName((name) => { window.submitScore(name, score, wave); });
 }
 
 function showLeaderboard() {
   const lb = document.getElementById('leaderboard-screen');
   lb.style.display = 'flex';
-  lb.style.zIndex = '30'; // above upgrade screen
+  lb.style.zIndex = '30';
   document.getElementById('lb-your-best').textContent = Math.floor(highScore || 0);
   if (window.loadLeaderboard) window.loadLeaderboard();
 }
@@ -1452,10 +1169,7 @@ function closeleaderboard() {
 }
 
 // ─── AD SYSTEM ───────────────────────────────────────────────────────────────
-// YOUR AD UNIT ID — get this from the TikTok Developer Portal after
-// enabling In-App Ads for your Mini Game app.
 const AD_UNIT_ID = 'YOUR_AD_UNIT_ID_HERE';
-
 let adCountdown = 0;
 let adInterval = null;
 
@@ -1463,16 +1177,13 @@ function watchAdForXP() {
   const btn = document.getElementById('xp-ad-btn');
   btn.disabled = true;
   btn.textContent = 'LOADING AD...';
-
   if (window.TTMinis && typeof TTMinis.game !== 'undefined' && TTMinis.game.showRewardedAd) {
-    // Real TikTok rewarded ad
     TTMinis.game.showRewardedAd({
       adUnitId: AD_UNIT_ID,
       success: () => { grantXPReward(); },
       fail: (err) => { console.warn('XP ad failed:', err); resetXPAdBtn(); }
     });
   } else {
-    // Browser fallback — show mock ad then grant XP
     showXPMockAd();
   }
 }
@@ -1485,11 +1196,7 @@ function showXPMockAd() {
   const iv = setInterval(() => {
     countdown--;
     document.getElementById('xp-ad-countdown').textContent = countdown;
-    if (countdown <= 0) {
-      clearInterval(iv);
-      adEl.style.display = 'none';
-      grantXPReward();
-    }
+    if (countdown <= 0) { clearInterval(iv); adEl.style.display = 'none'; grantXPReward(); }
   }, 1000);
 }
 
@@ -1497,84 +1204,16 @@ function grantXPReward() {
   bankedXP += 300;
   player.xp += 300;
   document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
-  // Flash the XP display green
   const xpEl = document.querySelector('#upgrade-screen .xp-display');
-  if (xpEl) {
-    xpEl.style.color = '#22cc44';
-    setTimeout(() => { xpEl.style.color = '#f0c040'; }, 800);
-  }
+  if (xpEl) { xpEl.style.color = '#22cc44'; setTimeout(() => { xpEl.style.color = '#f0c040'; }, 800); }
   buildUpgradeOptions();
-  // Disable the button so they can only use it once per death
   const btn = document.getElementById('xp-ad-btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '+300 XP CLAIMED';
-    btn.style.opacity = '0.35';
-  }
+  if (btn) { btn.disabled = true; btn.textContent = '+300 XP CLAIMED'; btn.style.opacity = '0.35'; }
 }
 
 function resetXPAdBtn() {
   const btn = document.getElementById('xp-ad-btn');
-  if (btn) {
-    btn.disabled = false;
-    btn.textContent = '▶ WATCH AD FOR +300 XP';
-  }
-}
-
-function watchAdForXP() {
-  const btn = document.getElementById('xp-ad-btn');
-  btn.disabled = true;
-  btn.textContent = 'LOADING AD...';
-
-  if (window.TTMinis && typeof TTMinis.game !== 'undefined' && TTMinis.game.showRewardedAd) {
-    // Real TikTok rewarded ad
-    TTMinis.game.showRewardedAd({
-      adUnitId: AD_UNIT_ID,
-      success: () => {
-        bankedXP += 300;
-        player.xp += 300;
-        document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
-        document.getElementById('upgrade-highscore').textContent = 'BEST: '+(highScore||0);
-        btn.textContent = '+300 XP EARNED!';
-        btn.style.borderColor = '#4f8';
-        btn.style.color = '#4f8';
-        buildUpgradeOptions();
-      },
-      fail: (err) => {
-        console.warn('Ad failed:', err);
-        btn.disabled = false;
-        btn.textContent = '▶ WATCH AD FOR 300 XP';
-      }
-    });
-  } else {
-    // Browser fallback — give XP instantly
-    bankedXP += 300;
-    player.xp += 300;
-    document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
-    btn.textContent = '+300 XP EARNED!';
-    btn.style.borderColor = '#4f8';
-    btn.style.color = '#4f8';
-    buildUpgradeOptions();
-  }
-}
-
-function watchAdAndRespawn() {
-  const btn = document.getElementById('respawn-btn');
-  btn.disabled = true;
-  btn.textContent = 'LOADING AD...';
-
-  if (window.TTMinis && typeof TTMinis.game !== 'undefined' && TTMinis.game.showRewardedAd) {
-    // ── REAL TIKTOK REWARDED AD (only runs inside TikTok app) ──
-    TTMinis.game.showRewardedAd({
-      adUnitId: AD_UNIT_ID,
-      success: () => { continueGame(); },
-      fail: (err) => { console.warn('Ad failed:', err); continueGame(); }
-    });
-  } else {
-    // ── BROWSER / GITHUB PAGES FALLBACK — instant respawn ──
-    // No real ad available outside TikTok, just continue
-    continueGame();
-  }
+  if (btn) { btn.disabled = false; btn.textContent = '▶ WATCH AD FOR +300 XP'; }
 }
 
 function showMockAd() {
@@ -1585,28 +1224,20 @@ function showMockAd() {
   adInterval = setInterval(() => {
     adCountdown--;
     document.getElementById('ad-countdown').textContent = adCountdown;
-    if (adCountdown <= 0) {
-      clearInterval(adInterval);
-      adEl.style.display = 'none';
-      continueGame();
-    }
+    if (adCountdown <= 0) { clearInterval(adInterval); adEl.style.display = 'none'; continueGame(); }
   }, 1000);
 }
 
 // ─── CONTINUE ────────────────────────────────────────────────────────────────
 function continueGame() {
   document.getElementById('upgrade-screen').style.display = 'none';
-  // Save upgrades
   const savedShape = player.shape;
   const savedSides = player.sides;
   const savedWeapons = player.weapons.slice();
   const savedWeaponCostMult = player.weaponCostMult || 1;
-  // Clear any active power-up timers
   if (player.powerUpTimer) clearTimeout(player.powerUpTimer);
-  // Full reset
   enemies = []; bullets = []; xpOrbs = []; particles = []; powerUps = []; powerUpSpawnCount = 0;
   wave = 1; score = 0; waveTimer = 0; shootTimer = 0;
-  // Restore player with upgrades
   player = createPlayer();
   player.shape = savedShape;
   player.sides = savedSides;
@@ -1626,29 +1257,30 @@ function startGame() {
   initGame();
   state = 'playing';
   startBgMusic();
-  // Tell TikTok the game has fully loaded (required by SDK)
   if (window.TTMinis) TTMinis.game.setLoadingProgress(1);
 }
 
 // ─── JOYSTICK ────────────────────────────────────────────────────────────────
+// CHANGES FROM ORIGINAL (3 things only):
+// 1. placeJoystickAt: jBase uses x/y directly (CSS transform:-50%,-50% centers it)
+// 2. placeJoystickAt: jStick set to 50%/50% (it's inside base, so relative to base)
+// 3. touchmove + mousemove: jStick uses (50+dx)/(50+dy) instead of (startX+dx-18)
 const jZone = document.getElementById('joystick-zone');
 const jBase = document.getElementById('joystick-base');
 const jStick = document.getElementById('joystick-stick');
 const MAX_JOYSTICK = 50;
 
 function getContainerPos(clientX, clientY) {
-  // Position relative to the game container so joystick appears exactly where tapped
   const rect = document.getElementById('game-container').getBoundingClientRect();
   return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
 function placeJoystickAt(x, y) {
-  // Center the base ring on the tap point
-  jBase.style.left = (x - 50) + 'px';
-  jBase.style.top  = (y - 50) + 'px';
+  jBase.style.left = x + 'px';   // ← FIXED: was (x - 50), CSS transform handles centering
+  jBase.style.top  = y + 'px';   // ← FIXED: was (y - 50)
   jBase.style.display = 'block';
-  jStick.style.left = (x - 18) + 'px';
-  jStick.style.top  = (y - 18) + 'px';
+  jStick.style.left = '50%';     // ← FIXED: was (x - 18), stick is child of base so 50% = center
+  jStick.style.top  = '50%';
 }
 
 jZone.addEventListener('touchstart', e => {
@@ -1672,8 +1304,8 @@ jZone.addEventListener('touchmove', e => {
   const len = Math.sqrt(dx*dx+dy*dy);
   if (len > MAX_JOYSTICK) { dx = dx/len*MAX_JOYSTICK; dy = dy/len*MAX_JOYSTICK; }
   joystick.dx = dx; joystick.dy = dy;
-  jStick.style.left = (joystick.startX + dx - 18) + 'px';
-  jStick.style.top  = (joystick.startY + dy - 18) + 'px';
+  jStick.style.left = (50 + dx) + 'px';  // ← FIXED: relative to base center (50px)
+  jStick.style.top  = (50 + dy) + 'px';  // ← FIXED: was (startY + dy - 18)
 }, {passive:false});
 
 jZone.addEventListener('touchend', e => {
@@ -1683,7 +1315,6 @@ jZone.addEventListener('touchend', e => {
   jBase.style.display = 'none';
 }, {passive:false});
 
-// Mouse fallback (desktop testing)
 jZone.addEventListener('mousedown', e => {
   const pos = getContainerPos(e.clientX, e.clientY);
   joystick.active = true;
@@ -1700,8 +1331,8 @@ window.addEventListener('mousemove', e => {
   const len = Math.sqrt(dx*dx+dy*dy);
   if (len > MAX_JOYSTICK) { dx = dx/len*MAX_JOYSTICK; dy = dy/len*MAX_JOYSTICK; }
   joystick.dx = dx; joystick.dy = dy;
-  jStick.style.left = (joystick.startX + dx - 18) + 'px';
-  jStick.style.top  = (joystick.startY + dy - 18) + 'px';
+  jStick.style.left = (50 + dx) + 'px';  // ← FIXED
+  jStick.style.top  = (50 + dy) + 'px';  // ← FIXED
 });
 window.addEventListener('mouseup', ()=>{
   joystick.active=false; joystick.dx=0; joystick.dy=0;
@@ -1712,11 +1343,10 @@ window.addEventListener('mouseup', ()=>{
 (function() {
   const pc = document.getElementById('preview-canvas');
   const pctx = pc.getContext('2d');
-  let a = -Math.PI/2; // blaster starts pointing up
+  let a = -Math.PI/2;
   function animPreview() {
     pctx.clearRect(0,0,110,110);
     a += 0.018;
-    // polygon rotation = a + PI/2 - PI/sides (so side 0 outward normal = a)
     const polyAngle = a + Math.PI/2 - Math.PI/3;
     drawPolygon(pctx, 55, 55, 3, 30, polyAngle, '#4aaaff', '#fff', 2);
     drawWeaponOnPlayer(pctx, 55, 55, a, 0, 3, 30, 'gun', true);
@@ -1733,7 +1363,6 @@ function ensureAudio() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-// Synth helper
 function playTone(freq, type, duration, gainVal, detune=0, decay=true) {
   ensureAudio();
   const osc = audioCtx.createOscillator();
@@ -1762,14 +1391,12 @@ function playNoise(duration, gainVal) {
 }
 
 function sfxBulletKill() {
-  // Boom: low thud + noise burst
   playTone(80, 'sine', 0.18, 0.5);
   playTone(120, 'sine', 0.12, 0.3);
   playNoise(0.12, 0.4);
 }
 
 function sfxSpikeKill() {
-  // Satisfying pop
   playTone(400, 'sine', 0.05, 0.5);
   playTone(800, 'sine', 0.08, 0.4);
   playTone(1200, 'triangle', 0.12, 0.3);
@@ -1812,8 +1439,6 @@ let musicTimeout = null;
 function scheduleMusicLoop() {
   if (!musicPlaying) return;
   const step = musicStep % BASS_NOTES.length;
-
-  // Bass note
   if (BASS_NOTES[step] > 0) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -1824,8 +1449,6 @@ function scheduleMusicLoop() {
     osc.start(); osc.stop(audioCtx.currentTime + BEAT);
     musicNodes.push(osc);
   }
-
-  // Lead note every other step
   if (LEAD_NOTES[step] > 0) {
     const osc2 = audioCtx.createOscillator();
     const gain2 = audioCtx.createGain();
@@ -1836,16 +1459,12 @@ function scheduleMusicLoop() {
     osc2.start(); osc2.stop(audioCtx.currentTime + BEAT);
     musicNodes.push(osc2);
   }
-
-  // Hi-hat on every beat
   playNoise(0.04, 0.04);
-
   musicStep++;
   musicTimeout = setTimeout(scheduleMusicLoop, BEAT * 1000);
 }
 
 // ─── BOOT ────────────────────────────────────────────────────────────────────
-// Tell TikTok we're 80% loaded (assets ready, waiting for user tap)
 if (window.TTMinis) TTMinis.game.setLoadingProgress(0.8);
 requestAnimationFrame(loop);
 </script>
