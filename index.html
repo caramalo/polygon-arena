@@ -240,8 +240,8 @@
   /* Joystick */
   #joystick-zone {
     position: absolute;
-    bottom: 0; left: 0;
-    width: 100%; height: 45%;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     z-index: 5;
     touch-action: none;
     pointer-events: all;
@@ -372,11 +372,8 @@
     <div class="xp-display">⬡ <span id="upgrade-xp">0</span> XP BANKED</div>
     <canvas id="upgrade-preview" width="90" height="90" class="shape-preview"></canvas>
     <div id="upgrade-options"></div>
-    <div style="width:80%;max-width:320px;margin-bottom:0.5rem;">
-      <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="width:100%;border-color:#22cc44;color:#22cc44;font-size:0.55rem;">▶ WATCH AD FOR +300 XP</button>
-    </div>
-    <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="border-color:#4af;color:#4af;margin-bottom:0.3rem;">▶ WATCH AD FOR 300 XP</button>
-    <button class="btn accent" id="respawn-btn" onclick="watchAdAndRespawn()">▶ WATCH AD TO RESPAWN</button>
+    <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="border-color:#22cc44;color:#22cc44;margin-bottom:0.3rem;">▶ WATCH AD FOR +300 XP</button>
+    <button class="btn accent" id="respawn-btn" onclick="continueGame()">▶ RESPAWN</button>
     <button class="btn" onclick="showLeaderboard()" style="font-size:0.5rem;border-color:#f0c040;color:#f0c040;">🏆 VIEW LEADERBOARD</button>
   </div>
 
@@ -436,7 +433,7 @@ const SHAPE_EVOLVE_COSTS = [500, 1000, 2000, 3500, 6000]; // tri>sq>pent>hex>hep
 // Weapon base costs — track dynamically on player object
 const BASE_GUN_COST = 40;
 const BASE_SPIKE_COST = 30;
-const BULLET_SPEED = 1.5;
+const BULLET_SPEED = 4.5;
 const ENEMY_BULLET_SPEED = 1.4;
 const PLAYER_SPEED = 2.2;
 
@@ -805,7 +802,7 @@ function update(dt) {
 
   // Auto-shoot from gun sides
   shootTimer++;
-  const shootThreshold = player.rapidFire ? 11 : 18;
+  const shootThreshold = player.rapidFire ? 16 : 28;
   if (shootTimer > shootThreshold) {
     shootTimer = 0;
     for (let i=0;i<player.sides;i++) {
@@ -817,17 +814,35 @@ function update(dt) {
           x: mid.x, y: mid.y,
           vx: Math.cos(a) * BULLET_SPEED,
           vy: Math.sin(a) * BULLET_SPEED,
-          r: 5, color:'#f44', owner:'player', life:160
+          r: 5, color:'#f44', owner:'player', life:300, bounces:2
         });
 
       }
     }
   }
 
-  // Update bullets
+  // Update bullets — player bullets bounce, enemy bullets die at walls
   for (let b of bullets) {
     b.x += b.vx; b.y += b.vy; b.life--;
-    if (b.x<ARENA.x||b.x>ARENA.x+ARENA.w||b.y<ARENA.y||b.y>ARENA.y+ARENA.h) b.life=0;
+    if (b.owner === 'player' && b.bounces > 0) {
+      let bounced = false;
+      if (b.x < ARENA.x || b.x > ARENA.x + ARENA.w) {
+        b.vx *= -1;
+        b.x = Math.max(ARENA.x, Math.min(ARENA.x + ARENA.w, b.x));
+        bounced = true;
+      }
+      if (b.y < ARENA.y || b.y > ARENA.y + ARENA.h) {
+        b.vy *= -1;
+        b.y = Math.max(ARENA.y, Math.min(ARENA.y + ARENA.h, b.y));
+        bounced = true;
+      }
+      if (bounced) {
+        b.bounces--;
+        spawnParticles(b.x, b.y, '#f88', 2);
+      }
+    } else if (b.x<ARENA.x||b.x>ARENA.x+ARENA.w||b.y<ARENA.y||b.y>ARENA.y+ARENA.h) {
+      b.life = 0;
+    }
   }
   bullets = bullets.filter(b=>b.life>0);
 
@@ -1278,7 +1293,7 @@ function showUpgradeScreen() {
   const rb = document.getElementById('respawn-btn');
   if (rb) { rb.disabled = false; rb.textContent = '▶ WATCH AD TO RESPAWN'; }
   const xpb = document.getElementById('xp-ad-btn');
-  if (xpb) { xpb.disabled = false; xpb.textContent = '▶ WATCH AD FOR 300 XP'; xpb.style.borderColor='#4af'; xpb.style.color='#4af'; }
+  if (xpb) { xpb.disabled = false; xpb.textContent = '▶ WATCH AD FOR +300 XP'; xpb.style.borderColor='#22cc44'; xpb.style.color='#22cc44'; }
   // Reset XP ad button for fresh use each death
   const xb = document.getElementById('xp-ad-btn');
   if (xb) { xb.disabled = false; xb.textContent = '▶ WATCH AD FOR +300 XP'; xb.style.opacity = '1'; }
@@ -1425,7 +1440,9 @@ function submitScoreToBoard(score, wave) {
 }
 
 function showLeaderboard() {
-  document.getElementById('leaderboard-screen').style.display = 'flex';
+  const lb = document.getElementById('leaderboard-screen');
+  lb.style.display = 'flex';
+  lb.style.zIndex = '30'; // above upgrade screen
   document.getElementById('lb-your-best').textContent = Math.floor(highScore || 0);
   if (window.loadLeaderboard) window.loadLeaderboard();
 }
@@ -1617,39 +1634,46 @@ function startGame() {
 const jZone = document.getElementById('joystick-zone');
 const jBase = document.getElementById('joystick-base');
 const jStick = document.getElementById('joystick-stick');
-const MAX_JOYSTICK = 42;
+const MAX_JOYSTICK = 50;
 
-function getZonePos(e) {
-  const rect = jZone.getBoundingClientRect();
-  const touch = e.touches ? e.touches[0] : e;
-  return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+function getContainerPos(clientX, clientY) {
+  // Position relative to the game container so joystick appears exactly where tapped
+  const rect = document.getElementById('game-container').getBoundingClientRect();
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function placeJoystickAt(x, y) {
+  // Center the base ring on the tap point
+  jBase.style.left = (x - 50) + 'px';
+  jBase.style.top  = (y - 50) + 'px';
+  jBase.style.display = 'block';
+  jStick.style.left = (x - 18) + 'px';
+  jStick.style.top  = (y - 18) + 'px';
 }
 
 jZone.addEventListener('touchstart', e => {
   e.preventDefault();
-  const pos = getZonePos(e);
+  const t = e.touches[0];
+  const pos = getContainerPos(t.clientX, t.clientY);
   joystick.active = true;
   joystick.startX = pos.x;
   joystick.startY = pos.y;
   joystick.dx = 0; joystick.dy = 0;
-  jBase.style.left = pos.x+'px';
-  jBase.style.top = pos.y+'px';
-  jBase.style.display = 'block';
-  jStick.style.left = pos.x+'px';
-  jStick.style.top = pos.y+'px';
+  placeJoystickAt(pos.x, pos.y);
 }, {passive:false});
 
 jZone.addEventListener('touchmove', e => {
   e.preventDefault();
   if (!joystick.active) return;
-  const pos = getZonePos(e);
+  const t = e.touches[0];
+  const pos = getContainerPos(t.clientX, t.clientY);
   let dx = pos.x - joystick.startX;
   let dy = pos.y - joystick.startY;
   const len = Math.sqrt(dx*dx+dy*dy);
   if (len > MAX_JOYSTICK) { dx = dx/len*MAX_JOYSTICK; dy = dy/len*MAX_JOYSTICK; }
   joystick.dx = dx; joystick.dy = dy;
-  jStick.style.left = (joystick.startX+dx)+'px';
-  jStick.style.top = (joystick.startY+dy)+'px';
+  jStick.style.left = (joystick.startX + dx - 18) + 'px';
+  jStick.style.top  = (joystick.startY + dy - 18) + 'px';
 }, {passive:false});
 
 jZone.addEventListener('touchend', e => {
@@ -1661,27 +1685,23 @@ jZone.addEventListener('touchend', e => {
 
 // Mouse fallback (desktop testing)
 jZone.addEventListener('mousedown', e => {
-  const rect = jZone.getBoundingClientRect();
+  const pos = getContainerPos(e.clientX, e.clientY);
   joystick.active = true;
-  joystick.startX = e.clientX - rect.left;
-  joystick.startY = e.clientY - rect.top;
+  joystick.startX = pos.x;
+  joystick.startY = pos.y;
   joystick.dx = 0; joystick.dy = 0;
-  jBase.style.left = joystick.startX+'px';
-  jBase.style.top = joystick.startY+'px';
-  jBase.style.display = 'block';
-  jStick.style.left = joystick.startX+'px';
-  jStick.style.top = joystick.startY+'px';
+  placeJoystickAt(pos.x, pos.y);
 });
 window.addEventListener('mousemove', e => {
   if (!joystick.active) return;
-  const rect = jZone.getBoundingClientRect();
-  let dx = (e.clientX-rect.left)-joystick.startX;
-  let dy = (e.clientY-rect.top)-joystick.startY;
+  const pos = getContainerPos(e.clientX, e.clientY);
+  let dx = pos.x - joystick.startX;
+  let dy = pos.y - joystick.startY;
   const len = Math.sqrt(dx*dx+dy*dy);
-  if (len > MAX_JOYSTICK) { dx=dx/len*MAX_JOYSTICK; dy=dy/len*MAX_JOYSTICK; }
-  joystick.dx=dx; joystick.dy=dy;
-  jStick.style.left=(joystick.startX+dx)+'px';
-  jStick.style.top=(joystick.startY+dy)+'px';
+  if (len > MAX_JOYSTICK) { dx = dx/len*MAX_JOYSTICK; dy = dy/len*MAX_JOYSTICK; }
+  joystick.dx = dx; joystick.dy = dy;
+  jStick.style.left = (joystick.startX + dx - 18) + 'px';
+  jStick.style.top  = (joystick.startY + dy - 18) + 'px';
 });
 window.addEventListener('mouseup', ()=>{
   joystick.active=false; joystick.dx=0; joystick.dy=0;
