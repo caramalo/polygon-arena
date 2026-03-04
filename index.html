@@ -259,8 +259,12 @@
 
 <script>
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
-const W = 480, H = 720;
-const ARENA = { x: 20, y: 70, w: W-40, h: H-90 };
+let W = 480, H = 720;
+let ARENA = { x: 20, y: 70, w: W-40, h: H-90 };
+
+function recalcArena() {
+  ARENA = { x: 20, y: 70, w: W - 40, h: H - 90 };
+}
 const SHAPES = ['triangle','square','pentagon','hexagon'];
 const SHAPES_SECRET = ['heptagon','octagon'];
 const SHAPE_SIDES = { triangle:3, square:4, pentagon:5, hexagon:6, heptagon:7, octagon:8 };
@@ -1554,25 +1558,45 @@ requestAnimationFrame(loop);
 </script>
 
 <script>
-  function scaleGame() {
-    const container = document.getElementById('game-container');
-    const vw = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
-    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    const scale = Math.min(vw / 480, vh / 720);
-    container.style.transform = `scale(${scale})`;
-  }
+function scaleGameNoCropFullBleed() {
+  const container = document.getElementById('game-container');
+  const canvas = document.getElementById('gameCanvas');
 
-  function setViewportHeightVar() {
-    const vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight) * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-  }
+  const vv = window.visualViewport;
+  const vw = vv ? vv.width : window.innerWidth;
+  const vh = vv ? vv.height : window.innerHeight;
 
-  setViewportHeightVar();
-  scaleGame();
+  // FIT scale so we never crop the game
+  const fitScale = Math.min(vw / 480, vh / 720);
 
-  window.addEventListener('resize', () => { setViewportHeightVar(); scaleGame(); });
-  window.visualViewport?.addEventListener('resize', () => { setViewportHeightVar(); scaleGame(); });
-  window.visualViewport?.addEventListener('scroll', () => { setViewportHeightVar(); scaleGame(); });
+  // Expand the internal world so after scaling it full-bleeds
+  const targetW = Math.ceil(vw / fitScale);
+  const targetH = Math.ceil(vh / fitScale);
+
+  // Keep minimum design size
+  W = Math.max(480, targetW);
+  H = Math.max(720, targetH);
+
+  // Apply new internal resolution
+  canvas.width = W;
+  canvas.height = H;
+
+  // Match DOM size to internal units so input mapping stays correct
+  container.style.width = W + 'px';
+  container.style.height = H + 'px';
+
+  // Scale to fit — because W/H expanded, it still full-bleeds
+  container.style.transform = `scale(${fitScale})`;
+  container.style.transformOrigin = 'center center';
+
+  // Update arena bounds for new W/H
+  recalcArena();
+}
+
+scaleGameNoCropFullBleed();
+window.addEventListener('resize', scaleGameNoCropFullBleed);
+window.visualViewport?.addEventListener('resize', scaleGameNoCropFullBleed);
+window.visualViewport?.addEventListener('scroll', scaleGameNoCropFullBleed);
 </script>
 </body>
 </html>
