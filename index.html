@@ -496,6 +496,7 @@ const POWERUP_TYPES = [
   { id: 'speed',   label: 'SPEED BOOST',   color: '#00eeff', icon: '▲', duration: 600 },
   { id: 'rapid',   label: 'RAPID FIRE',    color: '#ff9900', icon: '★', duration: 600 },
   { id: 'shield',  label: 'SHIELD',        color: '#44ff88', icon: '◈', duration: 600 },
+  { id: 'heart',   label: 'HEALTH UP',     color: '#ff4466', icon: '♥', duration: 0 },
 ];
 
 function spawnPowerUp() {
@@ -515,6 +516,16 @@ function spawnPowerUp() {
 }
 
 function activatePowerUp(type) {
+  // Heart is instant — no timer, no active state
+  if (type === 'heart') {
+    if (player.hp >= player.maxHp) {
+      showWarning('HEALTH FULL!');
+    } else {
+      player.hp = Math.min(player.maxHp, player.hp + 1);
+      showWarning('♥ HEALTH RESTORED!');
+    }
+    return;
+  }
   if (player.activePowerUp === type) {
     clearTimeout(player.powerUpTimer);
   }
