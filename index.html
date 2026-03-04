@@ -70,13 +70,13 @@
   body {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
   }
   #game-container {
     position: relative;
     width: 480px;
     height: 720px;
-    transform-origin: top center;
+    transform-origin: center center;
   }
   canvas { display: block; }
   .overlay {
@@ -1556,13 +1556,10 @@ requestAnimationFrame(loop);
 <script>
   function scaleGame() {
     const container = document.getElementById('game-container');
-    const scaleX = window.innerWidth / 480;
-    const scaleY = window.innerHeight / 720;
-    const scale = Math.min(scaleX, scaleY);
+    // Scale to fill full width — game is portrait so width is the constraint
+    const scale = window.innerWidth / 480;
     container.style.transform = 'scale(' + scale + ')';
-    // Center horizontally if there's leftover space
-    const leftover = window.innerWidth - 480 * scale;
-    container.style.marginLeft = (leftover / 2) + 'px';
+    container.style.marginLeft = '0px';
   }
   scaleGame();
   window.addEventListener('resize', scaleGame);
