@@ -204,7 +204,7 @@
     <button class="btn accent" onclick="closeleaderboard()">BACK</button>
   </div>
 
-  <div class="overlay" id="upgrade-screen">
+  <div class="overlay" id="upgrade-screen" style="justify-content:flex-start;padding-top:1.5rem;overflow-y:auto;">
     <h2>SHAPE DESTROYED</h2>
     <div class="score-display" id="upgrade-score"></div>
     <div class="score-display" id="upgrade-highscore" style="color:#f0c040;margin-top:0.2rem;"></div>
@@ -212,10 +212,12 @@
     <div class="xp-display">⬡ <span id="upgrade-xp">0</span> XP BANKED</div>
     <canvas id="upgrade-preview" width="90" height="90" class="shape-preview"></canvas>
     <div id="upgrade-options"></div>
-    <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="border-color:#22cc44;color:#22cc44;margin-bottom:0.3rem;">📺 +300 XP</button>
-    <button class="btn" id="revive-ad-btn" onclick="watchAdAndRevive()" style="border-color:#ff4466;color:#ff4466;margin-bottom:0.3rem;">📺 REVIVE &amp; CONTINUE</button>
-    <button class="btn accent" id="respawn-btn" onclick="continueGame()">▶ RESPAWN</button>
-    <button class="btn" onclick="showLeaderboard()" style="font-size:0.5rem;border-color:#f0c040;color:#f0c040;">🏆 VIEW LEADERBOARD</button>
+    <div style="display:flex;flex-direction:column;gap:0.3rem;width:80%;max-width:320px;margin-bottom:0.8rem;">
+      <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="border-color:#22cc44;color:#22cc44;font-size:0.65rem;padding:0.6em 1em;letter-spacing:0.12em;line-height:1.2;">🎥 +300 XP</button>
+      <button class="btn" id="revive-ad-btn" onclick="watchAdAndRevive()" style="border-color:#ff4466;color:#ff4466;font-size:0.65rem;padding:0.6em 1em;letter-spacing:0.12em;line-height:1.2;">🎥 REVIVE &amp; CONTINUE</button>
+      <button class="btn accent" id="respawn-btn" onclick="continueGame()" style="font-size:0.65rem;padding:0.6em 1em;letter-spacing:0.12em;line-height:1.2;">▶ RESPAWN</button>
+      <button class="btn" onclick="showLeaderboard()" style="font-size:0.65rem;border-color:#f0c040;color:#f0c040;padding:0.6em 1em;letter-spacing:0.1em;line-height:1.2;">🏆 LEADERBOARD</button>
+    </div>
   </div>
 
   <div id="xp-ad-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:20;flex-direction:column;align-items:center;justify-content:center;font-family:'Press Start 2P','Courier New',monospace;">
@@ -1040,9 +1042,9 @@ function showUpgradeScreen() {
   const rb = document.getElementById('respawn-btn');
   if (rb) { rb.disabled = false; rb.textContent = '▶ RESPAWN'; }
   const rvb = document.getElementById('revive-ad-btn');
-  if (rvb) { rvb.disabled = false; rvb.innerHTML = '📺 REVIVE &amp; CONTINUE'; rvb.style.opacity = '1'; }
+  if (rvb) { rvb.disabled = false; rvb.innerHTML = '🎥 REVIVE &amp; CONTINUE'; rvb.style.opacity = '1'; }
   const xpb = document.getElementById('xp-ad-btn');
-  if (xpb) { xpb.disabled = false; xpb.textContent = '📺 +300 XP'; xpb.style.borderColor='#22cc44'; xpb.style.color='#22cc44'; xpb.style.opacity='1'; }
+  if (xpb) { xpb.disabled = false; xpb.textContent = '🎥 +300 XP'; xpb.style.borderColor='#22cc44'; xpb.style.color='#22cc44'; xpb.style.opacity='1'; }
   buildUpgradeOptions();
 }
 
@@ -1255,7 +1257,7 @@ function watchAdAndRevive() {
       fail: (err) => {
         console.warn('Revive ad failed:', err);
         btn.disabled = false;
-        btn.innerHTML = '📺 REVIVE &amp; CONTINUE';
+        btn.innerHTML = '🎥 REVIVE &amp; CONTINUE';
         btn.style.opacity = '1';
       }
     });
