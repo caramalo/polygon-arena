@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <title>Polygon Rampage</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <!-- Firebase -->
@@ -68,15 +68,15 @@
     font-family: 'Press Start 2P', 'Courier New', monospace;
   }
   body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: block;
   }
   #game-container {
-    position: relative;
+    position: fixed;
+    left: 50%;
+    top: env(safe-area-inset-top);
     width: 480px;
     height: 720px;
-    transform-origin: center center;
+    transform-origin: top center;
   }
   canvas { display: block; }
   .overlay {
@@ -1586,8 +1586,7 @@ function scaleGameNoCropFullBleed() {
   container.style.height = H + 'px';
 
   // Scale to fit — because W/H expanded, it still full-bleeds
-  container.style.transform = `scale(${fitScale})`;
-  container.style.transformOrigin = 'center center';
+  container.style.transform = `translateX(-50%) scale(${fitScale})`;
 
   // Update arena bounds for new W/H
   recalcArena();
