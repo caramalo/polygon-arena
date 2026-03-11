@@ -1117,9 +1117,13 @@ const jBase = document.getElementById('joystick-base');
 const jStick = document.getElementById('joystick-stick');
 const MAX_JOYSTICK = 50;
 
+// *** THE FIX: convert screen-space touch coords into game-space coords ***
 function getContainerPos(clientX, clientY) {
   const rect = document.getElementById('game-container').getBoundingClientRect();
-  return { x: clientX - rect.left, y: clientY - rect.top };
+  return {
+    x: (clientX - rect.left) * (W / rect.width),
+    y: (clientY - rect.top)  * (H / rect.height)
+  };
 }
 
 function placeJoystickAt(x, y) {
