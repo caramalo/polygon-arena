@@ -142,14 +142,13 @@
   @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
   #ad-countdown { animation: pulse 1s ease-in-out infinite; }
   #hud-warning { text-align: center; color: #e05050; font-size: 0.7rem; letter-spacing: 0.15em; height: 1em; margin-top: 2px; }
-  #drag-zone { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; touch-action: none; pointer-events: all; }
-  #drag-cursor { position: absolute; width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.08); display: none; transform: translate(-50%,-50%); pointer-events: none; transition: border-color 0.1s; }
+  #joystick-zone { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; touch-action: none; pointer-events: all; }
+  #joystick-base { position: absolute; width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.12); display: none; transform: translate(-50%,-50%); pointer-events: none; }
+  #joystick-stick { position: absolute; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4); transform: translate(-50%,-50%); pointer-events: none; left: 50%; top: 50%; }
   /* ONBOARDING */
   @keyframes ob-pulse { 0%,100%{transform:scale(1);opacity:0.5;}50%{transform:scale(1.2);opacity:1;} }
   @keyframes ob-blink { 0%,100%{opacity:0.25;}50%{opacity:1;} }
   @keyframes ob-rock { 0%,100%{transform:rotate(-18deg);}50%{transform:rotate(18deg);} }
-  @keyframes ob-finger-lead { 0%,100%{transform:translate(calc(-50% + 0px),calc(-50% + 0px));}30%{transform:translate(calc(-50% + 36px),calc(-50% + 16px));}60%{transform:translate(calc(-50% + 14px),calc(-50% + 36px));}80%{transform:translate(calc(-50% - 28px),calc(-50% + 10px));} }
-  @keyframes ob-poly-chase { 0%,100%{transform:translate(-50%,-50%);}30%{transform:translate(calc(-50% + 20px),calc(-50% + 9px));}60%{transform:translate(calc(-50% + 8px),calc(-50% + 20px));}80%{transform:translate(calc(-50% - 16px),calc(-50% + 6px));} }
   @keyframes ob-drift { 0%{transform:translate(-50%,-50%);}25%{transform:translate(calc(-50% + 22px),calc(-50% + 12px));}50%{transform:translate(calc(-50% + 10px),calc(-50% + 28px));}75%{transform:translate(calc(-50% - 18px),calc(-50% + 8px));}100%{transform:translate(-50%,-50%);} }
   .ob-dot { width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.2);transition:background 0.3s; }
   .ob-dot.active { background:#fff; }
@@ -194,20 +193,19 @@
     <!-- semi-transparent backdrop, non-blocking so game renders beneath -->
     <div id="ob-backdrop" style="position:absolute;inset:0;background:rgba(5,5,15,0.55);pointer-events:none;"></div>
 
-    <!-- Step 0: drag-to-lead hint -->
-    <div id="ob-step-0" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;">
-      <div style="position:relative;width:120px;height:120px;margin:0 auto 1rem;">
-        <!-- finger dot that drifts away from center, polygon dot that chases it -->
-        <div style="position:absolute;width:22px;height:22px;border-radius:50%;background:#4aaaff;border:2px solid #fff;top:50%;left:50%;transform:translate(-50%,-50%);animation:ob-poly-chase 2.2s ease-in-out infinite;opacity:0.9;"></div>
-        <div style="position:absolute;width:30px;height:30px;border-radius:50%;border:2.5px solid rgba(255,255,255,0.7);background:rgba(255,255,255,0.12);top:50%;left:50%;animation:ob-finger-lead 2.2s ease-in-out infinite;"></div>
+    <!-- Step 0: joystick hint at bottom -->
+    <div id="ob-step-0" style="display:none;position:absolute;bottom:20%;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;">
+      <div style="position:relative;width:100px;height:100px;margin:0 auto 0.8rem;">
+        <div style="position:absolute;inset:0;border-radius:50%;border:2px dashed rgba(255,255,255,0.35);animation:ob-pulse 1.4s ease-in-out infinite;"></div>
+        <div id="ob-stick-dot" style="position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.22);border:2px solid rgba(255,255,255,0.6);top:50%;left:50%;animation:ob-drift 2.2s ease-in-out infinite;"></div>
       </div>
-      <div style="color:rgba(255,255,255,0.95);font-size:0.42rem;letter-spacing:0.16em;line-height:1.9em;">HOLD &amp; DRAG AHEAD<br>OF YOUR SHAPE<br><span style="color:rgba(255,255,255,0.45);font-size:0.34rem;">IT FOLLOWS YOUR FINGER</span></div>
+      <div style="color:rgba(255,255,255,0.9);font-size:0.38rem;letter-spacing:0.16em;">DRAG TO MOVE &amp; AIM</div>
     </div>
 
-    <!-- Step 1: gun auto-fires toward finger -->
+    <!-- Step 1: gun highlight -->
     <div id="ob-step-1" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;">
-      <div style="color:#e82222;font-size:2rem;margin-bottom:0.5rem;">🎯</div>
-      <div style="color:#fff;font-size:0.50rem;letter-spacing:0.14em;line-height:1.8em;">YOUR GUN AUTO-FIRES<br>TOWARD YOUR FINGER</div>
+      <div style="color:#e82222;font-size:2rem;margin-bottom:0.5rem;">▶</div>
+      <div style="color:#e82222;font-size:0.42rem;letter-spacing:0.14em;line-height:1.8em;">YOUR GUN AUTO-FIRES<br>IN THE DIRECTION YOU MOVE</div>
     </div>
 
     <!-- Step 2: XP orbs -->
@@ -291,8 +289,10 @@
     </div>
   </div>
 
-  <div id="drag-zone">
-    <div id="drag-cursor"></div>
+  <div id="joystick-zone">
+    <div id="joystick-base">
+      <div id="joystick-stick"></div>
+    </div>
   </div>
 </div>
 <script>
@@ -322,7 +322,7 @@ let player, enemies, bullets, xpOrbs, particles;
 let wave, score, totalXP, bankedXP, highScore, highestWave;
 let powerUps = [];
 let powerUpSpawnCount = 0;
-let dragPos = null; // {x,y} in canvas coords when finger/mouse is down
+let joystick = { active:false, startX:0, startY:0, dx:0, dy:0 };
 let lastTime = 0;
 let shootTimer = 0;
 let waveTimer = 0;
@@ -604,17 +604,12 @@ function drawShield() {
 function update(dt) {
   if (state !== 'playing') return;
 
-  if (dragPos) {
-    const dx = dragPos.x - player.x;
-    const dy = dragPos.y - player.y;
-    const d = Math.sqrt(dx*dx + dy*dy);
-    if (d > 4) {
-      const nx = dx/d, ny = dy/d;
-      player.angle = Math.atan2(ny, nx);
-      const moveSpeed = Math.min(d / 12, 1) * player.speed;
-      player.x = Math.max(ARENA.x+player.r, Math.min(ARENA.x+ARENA.w-player.r, player.x + nx*moveSpeed));
-      player.y = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, player.y + ny*moveSpeed));
-    }
+  if (joystick.active && (joystick.dx !== 0 || joystick.dy !== 0)) {
+    const len = Math.sqrt(joystick.dx**2+joystick.dy**2);
+    const nx = joystick.dx/len; const ny = joystick.dy/len;
+    player.angle = Math.atan2(ny, nx);
+    player.x = Math.max(ARENA.x+player.r, Math.min(ARENA.x+ARENA.w-player.r, player.x + nx*player.speed));
+    player.y = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, player.y + ny*player.speed));
   }
 
   if (player.invincible > 0) player.invincible--;
@@ -1116,58 +1111,79 @@ function startGame() {
   if (window.TTMinis) TTMinis.game.setLoadingProgress(1);
 }
 
-// ─── DRAG-TO-LEAD CONTROLS ───────────────────────────────────────────────────
-const dragZone = document.getElementById('drag-zone');
-const dragCursor = document.getElementById('drag-cursor');
+// ─── JOYSTICK ────────────────────────────────────────────────────────────────
+const jZone = document.getElementById('joystick-zone');
+const jBase = document.getElementById('joystick-base');
+const jStick = document.getElementById('joystick-stick');
+const MAX_JOYSTICK = 50;
 
-function getCanvasPos(clientX, clientY) {
+// *** THE FIX: convert screen-space touch coords into game-space coords ***
+function getContainerPos(clientX, clientY) {
   const rect = document.getElementById('game-container').getBoundingClientRect();
-  const scaleX = W / rect.width;
-  const scaleY = H / rect.height;
-  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  return {
+    x: (clientX - rect.left) * (W / rect.width),
+    y: (clientY - rect.top)  * (H / rect.height)
+  };
 }
 
-function showDragCursor(clientX, clientY) {
-  dragCursor.style.left = (clientX - document.getElementById('game-container').getBoundingClientRect().left) + 'px';
-  dragCursor.style.top  = (clientY - document.getElementById('game-container').getBoundingClientRect().top) + 'px';
-  dragCursor.style.display = 'block';
+function placeJoystickAt(x, y) {
+  jBase.style.left = x + 'px';
+  jBase.style.top  = y + 'px';
+  jBase.style.display = 'block';
+  jStick.style.left = '50%';
+  jStick.style.top  = '50%';
 }
 
-dragZone.addEventListener('touchstart', e => {
+jZone.addEventListener('touchstart', e => {
   e.preventDefault();
-  if (state === 'onboarding') { obAdvance(); return; }
   const t = e.touches[0];
-  dragPos = getCanvasPos(t.clientX, t.clientY);
-  showDragCursor(t.clientX, t.clientY);
-}, {passive:false});
-
-dragZone.addEventListener('touchmove', e => {
-  e.preventDefault();
-  if (!dragPos) return;
-  const t = e.touches[0];
-  dragPos = getCanvasPos(t.clientX, t.clientY);
-  showDragCursor(t.clientX, t.clientY);
-}, {passive:false});
-
-dragZone.addEventListener('touchend', e => {
-  e.preventDefault();
-  dragPos = null;
-  dragCursor.style.display = 'none';
-}, {passive:false});
-
-dragZone.addEventListener('mousedown', e => {
+  const pos = getContainerPos(t.clientX, t.clientY);
+  // If onboarding is active, tap advances it
   if (state === 'onboarding') { obAdvance(); return; }
-  dragPos = getCanvasPos(e.clientX, e.clientY);
-  showDragCursor(e.clientX, e.clientY);
+  joystick.active = true; joystick.startX = pos.x; joystick.startY = pos.y;
+  joystick.dx = 0; joystick.dy = 0;
+  placeJoystickAt(pos.x, pos.y);
+}, {passive:false});
+
+jZone.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!joystick.active) return;
+  const t = e.touches[0];
+  const pos = getContainerPos(t.clientX, t.clientY);
+  let dx = pos.x - joystick.startX; let dy = pos.y - joystick.startY;
+  const len = Math.sqrt(dx*dx+dy*dy);
+  if (len > MAX_JOYSTICK) { dx = dx/len*MAX_JOYSTICK; dy = dy/len*MAX_JOYSTICK; }
+  joystick.dx = dx; joystick.dy = dy;
+  jStick.style.left = (50 + dx) + 'px';
+  jStick.style.top  = (50 + dy) + 'px';
+}, {passive:false});
+
+jZone.addEventListener('touchend', e => {
+  e.preventDefault();
+  joystick.active = false; joystick.dx = 0; joystick.dy = 0;
+  jBase.style.display = 'none';
+}, {passive:false});
+
+jZone.addEventListener('mousedown', e => {
+  if (state === 'onboarding') { obAdvance(); return; }
+  const pos = getContainerPos(e.clientX, e.clientY);
+  joystick.active = true; joystick.startX = pos.x; joystick.startY = pos.y;
+  joystick.dx = 0; joystick.dy = 0;
+  placeJoystickAt(pos.x, pos.y);
 });
 window.addEventListener('mousemove', e => {
-  if (!dragPos) return;
-  dragPos = getCanvasPos(e.clientX, e.clientY);
-  showDragCursor(e.clientX, e.clientY);
+  if (!joystick.active) return;
+  const pos = getContainerPos(e.clientX, e.clientY);
+  let dx = pos.x - joystick.startX; let dy = pos.y - joystick.startY;
+  const len = Math.sqrt(dx*dx+dy*dy);
+  if (len > MAX_JOYSTICK) { dx = dx/len*MAX_JOYSTICK; dy = dy/len*MAX_JOYSTICK; }
+  joystick.dx = dx; joystick.dy = dy;
+  jStick.style.left = (50 + dx) + 'px';
+  jStick.style.top  = (50 + dy) + 'px';
 });
 window.addEventListener('mouseup', () => {
-  dragPos = null;
-  dragCursor.style.display = 'none';
+  joystick.active = false; joystick.dx = 0; joystick.dy = 0;
+  jBase.style.display = 'none';
 });
 
 // ─── ONBOARDING ───────────────────────────────────────────────────────────────
