@@ -6,10 +6,10 @@
 <title>Polygon Rampage</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <!-- Firebase -->
+<!-- Firebase (ES modules — works on localhost and CrazyGames) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, push, query, orderByChild, limitToLast, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
+  import { getDatabase, ref, set, get, query, orderByChild, limitToLast, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   const firebaseConfig = {
     apiKey: "AIzaSyDAvJDeXr3DJhCD2bOiUplSjbZmKjXkOCo",
     authDomain: "polygon-rampage.firebaseapp.com",
@@ -19,42 +19,38 @@
     messagingSenderId: "1073453912855",
     appId: "1:1073453912855:web:9cd387b6cc91fccec39d52"
   };
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+    // Store one entry per player name (overwrite if new score is higher)
+    // This ensures the leaderboard shows top 5 UNIQUE players, not 5 entries from same person
+    window.submitScore = function(name, score, wave) {
+      // One entry per player — overwrite only if new score is higher
+      // This ensures top 5 = 5 unique players, not 5 runs from same person
+      const playerRef = ref(db, 'scores/' + name.replace(/[.#$[\]]/g, '_'));
+      get(playerRef).then(snap => {
+        const existing = snap.val();
+        if (!existing || score > existing.score) {
+          set(playerRef, { name, score, wave, ts: Date.now() });
+        }
+      });
+    };
 
-  window.submitScore = function(name, score, wave) {
-    const scoresRef = ref(db, 'scores');
-    push(scoresRef, { name: name, score: score, wave: wave, ts: Date.now() });
-  };
-
-  window.loadLeaderboard = function() {
-    const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(5));
-    onValue(scoresRef, (snapshot) => {
-      const entries = [];
-      snapshot.forEach(child => entries.push(child.val()));
-      entries.sort((a, b) => b.score - a.score);
-      renderLeaderboard(entries);
-    });
-  };
-
-  function renderLeaderboard(entries) {
-    const el = document.getElementById('leaderboard-list');
-    if (!el) return;
-    if (entries.length === 0) {
-      el.innerHTML = '<div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">NO SCORES YET — BE THE FIRST!</div>';
-      return;
-    }
-    const medals = ['🥇','🥈','🥉','4.','5.'];
-    el.innerHTML = entries.map((e, i) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #1a1a2e;">
-        <span style="color:#f0c040;font-size:0.38rem;min-width:1.5rem;">${medals[i]}</span>
-        <span style="color:#ccc;font-size:0.38rem;flex:1;margin-left:0.4rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.name}</span>
-        <span style="color:#fff;font-size:0.38rem;margin-left:0.5rem;">${Math.floor(e.score)}</span>
-        <span style="color:#555;font-size:0.3rem;margin-left:0.5rem;">W${e.wave}</span>
-      </div>
-    `).join('');
-  }
+    window.loadLeaderboard = function() {
+      const q = query(ref(db, 'scores'), orderByChild('score'), limitToLast(5));
+      onValue(q, (snapshot) => {
+        const entries = [];
+        snapshot.forEach(child => entries.push(child.val()));
+        entries.sort((a, b) => b.score - a.score);
+        const el = document.getElementById('leaderboard-list');
+        if (!el) return;
+        if (entries.length === 0) { el.innerHTML = '<div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">NO SCORES YET — BE THE FIRST!</div>'; return; }
+        const medals = ['🥇','🥈','🥉','4.','5.'];
+        el.innerHTML = entries.map((e, i) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #1a1a2e;"><span style="color:#f0c040;font-size:0.38rem;min-width:1.5rem;">${medals[i]}</span><span style="color:#ccc;font-size:0.38rem;flex:1;margin-left:0.4rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.name}</span><span style="color:#fff;font-size:0.38rem;margin-left:0.5rem;">${Math.floor(e.score)}</span><span style="color:#555;font-size:0.3rem;margin-left:0.5rem;">W${e.wave}</span></div>`).join('');
+      });
+    };
+  } catch(e) { console.warn('Firebase init failed:', e); }
 </script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -73,10 +69,11 @@
   #game-container {
     position: fixed;
     left: 50%;
-    top: env(safe-area-inset-top);
+    top: env(safe-area-inset-top, 0px);
     width: 480px;
     height: 720px;
     transform-origin: top center;
+    transform: translateX(-50%);
   }
   canvas { display: block; }
   .overlay {
@@ -140,6 +137,7 @@
   #hud-info { display: flex; justify-content: space-between; font-size: 0.5rem; color: #888; letter-spacing: 0.1em; }
   #hud-info span { color: #ccc; }
   @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
   #ad-countdown { animation: pulse 1s ease-in-out infinite; }
   #hud-warning { text-align: center; color: #e05050; font-size: 0.7rem; letter-spacing: 0.15em; height: 1em; margin-top: 2px; }
   #joystick-zone { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; touch-action: none; pointer-events: all; }
@@ -155,16 +153,7 @@
 </style>
 </head>
 <body>
-<script>
-  (function() {
-    var s = document.createElement('script');
-    s.src = 'https://developers.tiktok.com/js/minis.js';
-    s.async = true;
-    s.onload = function() { if (window.TTMinis) TTMinis.game.init({ clientKey: 'YOUR_CLIENT_KEY_HERE' }); };
-    s.onerror = function() { console.log('TikTok SDK not available — running in browser mode'); };
-    document.head.appendChild(s);
-  })();
-</script>
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 <div id="game-container">
   <canvas id="gameCanvas" width="480" height="720"></canvas>
 
@@ -188,7 +177,7 @@
   </div>
 
   <!-- ONBOARDING OVERLAY (sits on top of live game, pointer-events managed per element) -->
-  <div id="onboarding-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;z-index:15;">
+  <div id="onboarding-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;z-index:15;" onclick="obAdvance()">
 
     <!-- semi-transparent backdrop, non-blocking so game renders beneath -->
     <div id="ob-backdrop" style="position:absolute;inset:0;background:rgba(5,5,15,0.55);pointer-events:none;"></div>
@@ -226,7 +215,7 @@
     </div>
 
     <!-- SKIP button top-right -->
-    <div style="position:absolute;top:3%;right:4%;cursor:pointer;" onclick="obSkip()">
+    <div style="position:absolute;top:3%;right:4%;cursor:pointer;" onclick="event.stopPropagation();obSkip()">
       <div style="color:rgba(255,255,255,0.3);font-size:0.34rem;letter-spacing:0.14em;border:1px solid rgba(255,255,255,0.18);padding:0.3em 0.8em;">SKIP</div>
     </div>
 
@@ -265,28 +254,21 @@
     </div>
   </div>
 
-  <div id="xp-ad-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:20;flex-direction:column;align-items:center;justify-content:center;font-family:'Press Start 2P','Courier New',monospace;">
-    <div style="color:#888;font-size:0.55rem;letter-spacing:0.2em;margin-bottom:1rem;">ADVERTISEMENT</div>
-    <div style="width:280px;height:200px;background:#111;border:1px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:1.5rem;position:relative;">
-      <div style="color:#555;font-size:0.6rem;letter-spacing:0.15em;text-align:center;line-height:2em;">YOUR AD HERE<br><span style="font-size:0.5rem;color:#333;">TikTok Ad Unit</span></div>
-      <div style="position:absolute;top:6px;right:10px;color:#333;font-size:0.5rem;">AD</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:0.8rem;">
-      <div style="width:32px;height:32px;border:2px solid #22cc44;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#22cc44;font-size:1rem;font-weight:bold;animation:pulse 1s ease-in-out infinite;" id="xp-ad-countdown">5</div>
-      <span style="color:#22cc44;font-size:0.5rem;letter-spacing:0.1em;">+300 XP INCOMING</span>
-    </div>
+  <!-- Ad loading blocker: shown while CrazyGames SDK is loading the ad, hidden once adStarted fires -->
+  <div id="ad-loading-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:25;flex-direction:column;align-items:center;justify-content:center;font-family:'Press Start 2P','Courier New',monospace;pointer-events:all;">
+    <div style="width:48px;height:48px;border:3px solid #f0c040;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:1.2rem;"></div>
+    <div style="color:#888;font-size:0.38rem;letter-spacing:0.2em;">LOADING AD...</div>
   </div>
 
-  <div id="ad-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:20;flex-direction:column;align-items:center;justify-content:center;font-family:'Courier New',monospace;">
-    <div style="color:#888;font-size:0.7rem;letter-spacing:0.2em;margin-bottom:1rem;">ADVERTISEMENT</div>
-    <div style="width:280px;height:200px;background:#111;border:1px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:1.5rem;position:relative;">
-      <div style="color:#555;font-size:0.75rem;letter-spacing:0.15em;text-align:center;line-height:2em;">YOUR AD HERE<br><span style="font-size:0.6rem;color:#333;">TikTok Ad Unit</span></div>
-      <div style="position:absolute;top:6px;right:10px;color:#333;font-size:0.6rem;">AD</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:0.8rem;">
-      <div style="width:32px;height:32px;border:2px solid #f0c040;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#f0c040;font-size:1rem;font-weight:bold;" id="ad-countdown">5</div>
-      <span style="color:#888;font-size:0.75rem;letter-spacing:0.1em;">Watch to earn your respawn</span>
-    </div>
+  <!-- Inline name input (replaces window.prompt — no popups allowed) -->
+  <div id="name-input-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,0.95);z-index:30;flex-direction:column;align-items:center;justify-content:center;font-family:'Press Start 2P','Courier New',monospace;">
+    <div style="color:#fff;font-size:0.55rem;letter-spacing:0.15em;margin-bottom:1.2rem;text-align:center;">ENTER YOUR NAME<br><span style="color:#555;font-size:0.38rem;">FOR THE LEADERBOARD</span></div>
+    <input id="player-name-input" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false"
+      style="background:#111;border:2px solid #f0c040;color:#fff;font-family:'Press Start 2P','Courier New',monospace;font-size:0.7rem;letter-spacing:0.15em;padding:0.6em 1em;width:260px;text-align:center;text-transform:uppercase;margin-bottom:1rem;outline:none;"
+      onkeydown="if(event.key==='Enter')submitNameInput()"
+      oninput="this.value=this.value.toUpperCase()">
+    <button class="btn accent" onclick="submitNameInput()" style="font-size:0.55rem;padding:0.6em 2em;">SUBMIT</button>
+    <button class="btn" onclick="skipNameInput()" style="font-size:0.38rem;border-color:#333;color:#555;padding:0.4em 1.5em;margin-top:0.3rem;">SKIP</button>
   </div>
 
   <div id="joystick-zone">
@@ -743,9 +725,10 @@ function playerHit() {
   if (player.hp <= 0) {
     player.dead = true;
     bankedXP = player.xp;
-    if (score > (highScore || 0)) highScore = score;
-    if (wave > (highestWave || 0)) highestWave = wave;
+    if (score > (highScore || 0)) { highScore = score; saveProgress(); }
+    if (wave > (highestWave || 0)) { highestWave = wave; saveProgress(); }
     if (score > 0) submitScoreToBoard(score, wave);
+    if (cgSDK()) cgSDK().game.gameplayStop();
     setTimeout(showUpgradeScreen, 600);
     state = 'upgrading';
   }
@@ -881,7 +864,19 @@ function showUpgradeScreen() {
       hint.style.display = 'block';
     }
   }
-  document.getElementById('upgrade-highscore').textContent = 'BEST: '+(highScore||0);
+  const isNewBest = score >= (highScore || 0) && score > 0;
+  const hsEl = document.getElementById('upgrade-highscore');
+  if (isNewBest) {
+    hsEl.textContent = '★ NEW BEST: ' + Math.floor(highScore);
+    hsEl.style.color = '#ffee44';
+    hsEl.style.animation = 'pulse 0.6s ease-in-out 3';
+    // Trigger CrazyGames site celebration on new high score
+    if (cgSDK()) cgSDK().game.happytime();
+  } else {
+    hsEl.textContent = 'ALL-TIME BEST: ' + Math.floor(highScore || 0);
+    hsEl.style.color = '#f0c040';
+    hsEl.style.animation = '';
+  }
   const pc = document.getElementById('upgrade-preview');
   const pctx = pc.getContext('2d');
   pctx.clearRect(0,0,90,90);
@@ -890,11 +885,46 @@ function showUpgradeScreen() {
   for (let i=0;i<player.sides;i++) { if (player.weapons[i]) drawWeaponOnPlayer(pctx, 45, 45, 0, i, player.sides, 28, player.weapons[i], i===0); }
   const rb = document.getElementById('respawn-btn');
   if (rb) { rb.disabled = false; rb.textContent = '▶ RESPAWN'; }
-  const rvb = document.getElementById('revive-ad-btn');
-  if (rvb) { rvb.disabled = false; rvb.innerHTML = '🎥 REVIVE &amp; CONTINUE'; rvb.style.opacity = '1'; }
-  const xpb = document.getElementById('xp-ad-btn');
-  if (xpb) { xpb.disabled = false; xpb.textContent = '🎥 +300 XP'; xpb.style.borderColor='#22cc44'; xpb.style.color='#22cc44'; xpb.style.opacity='1'; }
+  // Check for adblock before showing rewarded ad buttons
+  checkAdblockThenShowAdBtns();
   buildUpgradeOptions();
+}
+
+async function checkAdblockThenShowAdBtns() {
+  const rvb = document.getElementById('revive-ad-btn');
+  const xpb = document.getElementById('xp-ad-btn');
+  const sdk = cgSDK();
+
+  // Default: show buttons normally
+  if (rvb) { rvb.disabled = false; rvb.innerHTML = '🎥 REVIVE &amp; CONTINUE'; rvb.style.opacity = '1'; rvb.style.borderColor = '#ff4466'; rvb.style.color = '#ff4466'; }
+  if (xpb) { xpb.disabled = false; xpb.textContent = '🎥 +300 XP'; xpb.style.borderColor = '#22cc44'; xpb.style.color = '#22cc44'; xpb.style.opacity = '1'; }
+
+  if (!sdk) return; // dev/browser mode — keep buttons visible for testing
+
+  try {
+    const hasAdblock = await sdk.ad.hasAdblock();
+    if (hasAdblock) {
+      // Disable ad buttons with clear notice per CrazyGames rules:
+      // "Do not keep the rewarded ads clickable but without effect"
+      if (rvb) {
+        rvb.disabled = true;
+        rvb.innerHTML = '🚫 ADS BLOCKED';
+        rvb.style.opacity = '0.35';
+        rvb.style.borderColor = '#555';
+        rvb.style.color = '#555';
+      }
+      if (xpb) {
+        xpb.disabled = true;
+        xpb.textContent = '🚫 ADS BLOCKED';
+        xpb.style.opacity = '0.35';
+        xpb.style.borderColor = '#555';
+        xpb.style.color = '#555';
+      }
+    }
+  } catch (e) {
+    // hasAdblock failed — leave buttons as-is
+    console.warn('Adblock check failed:', e);
+  }
 }
 
 function buildUpgradeOptions() {
@@ -964,27 +994,158 @@ function refreshUpgradePreview() {
   for(let i=0;i<player.sides;i++){ if(player.weapons[i]) drawWeaponOnPlayer(pctx,45,45,0,i,player.sides,28,player.weapons[i],i===0); }
 }
 
-// ─── LEADERBOARD ─────────────────────────────────────────────────────────────
-let playerName = null;
+// ─── CrazyGames SDK INIT & USER ──────────────────────────────────────────────
+// v3 SDK requires manual init before any calls.
+// Environment must be 'local' or 'crazygames' — disabled on other domains.
 
-function getPlayerName(callback) {
-  if (window.TTMinis && TTMinis.user && TTMinis.user.getInfo) {
-    TTMinis.user.getInfo({ success: (info) => { playerName = info.nickname || info.openId || 'PLAYER'; callback(playerName); }, fail: () => promptPlayerName(callback) });
+let playerName = null;
+let pendingScoreSubmit = null;
+let _cgSDKReady = false; // true once SDK.init() resolves
+
+function cgSDK() {
+  // Only return SDK if initialized AND environment is valid
+  if (!_cgSDKReady) return null;
+  const sdk = window.CrazyGames && window.CrazyGames.SDK ? window.CrazyGames.SDK : null;
+  if (!sdk) return null;
+  const env = sdk.environment;
+  if (env === 'disabled') return null; // not on CrazyGames or localhost — don't use SDK
+  return sdk;
+}
+
+// Called once at boot — inits SDK, loads progress, resolves player name
+async function initCrazyGamesUser() {
+  // Check SDK is present
+  if (!window.CrazyGames || !window.CrazyGames.SDK) {
+    loadProgressLocal(); // pure browser/dev fallback
+    return;
+  }
+
+  // v3 requires explicit init before any SDK calls
+  try {
+    await window.CrazyGames.SDK.init();
+    _cgSDKReady = true;
+  } catch (e) {
+    console.warn('CrazyGames SDK init failed:', e);
+    loadProgressLocal();
+    return;
+  }
+
+  const sdk = cgSDK();
+  if (!sdk) {
+    // Environment is 'disabled' (hosted on non-CG domain) — skip SDK, use local
+    loadProgressLocal();
+    return;
+  }
+
+  // Load saved progress (works for both guests and logged-in users)
+  await loadProgressCG();
+
+  // Try to get logged-in user's display name
+  try {
+    const user = await sdk.user.getUser();
+    if (user && user.username) {
+      playerName = user.username.substring(0, 16).toUpperCase();
+    }
+  } catch (e) {
+    // userNotAuthenticated or SDK error — guest, no name set, will prompt if they score
+  }
+
+  // Auth listener: if guest logs in mid-session, reload to sync their cloud progress
+  sdk.user.addAuthListener((user) => {
+    if (user && user.username) {
+      // User just logged in — reload so cloud progress syncs correctly
+      window.location.reload();
+    }
+  });
+
+  // Respect muteAudio game setting (e.g. user has CrazyGames audio disabled)
+  const settings = sdk.game.settings;
+  if (settings && settings.muteAudio) stopBgMusic();
+  sdk.game.addSettingsChangeListener((newSettings) => {
+    if (newSettings.muteAudio) stopBgMusic();
+    else if (!musicPlaying && state === 'playing') startBgMusic();
+  });
+
+  // Signal that loading is complete
+  sdk.game.loadingStop();
+}
+
+// ── Progress save / load ──────────────────────────────────────────────────────
+const SAVE_KEY = 'polygonRampageSave';
+
+function saveProgress() {
+  const sdk = cgSDK();
+  if (sdk) {
+    // Use CG Data module exclusively on CrazyGames — it handles guests via localStorage internally
+    // Read before write to avoid losing progress (per CG docs)
+    try {
+      const existing = sdk.data.getItem(SAVE_KEY);
+      const prev = existing ? JSON.parse(existing) : {};
+      const merged = {
+        highScore: Math.max(highScore || 0, prev.highScore || 0),
+        highestWave: Math.max(highestWave || 0, prev.highestWave || 0),
+      };
+      sdk.data.setItem(SAVE_KEY, JSON.stringify(merged));
+    } catch (e) { console.warn('CG save failed:', e); }
   } else {
-    if (playerName) { callback(playerName); return; }
-    promptPlayerName(callback);
+    // Not on CrazyGames — use localStorage directly
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        highScore: highScore || 0,
+        highestWave: highestWave || 0,
+      }));
+    } catch (e) {}
   }
 }
 
-function promptPlayerName(callback) {
-  const name = prompt('ENTER YOUR NAME FOR THE LEADERBOARD:', '') || 'ANONYMOUS';
-  playerName = name.trim().substring(0, 16).toUpperCase() || 'ANONYMOUS';
-  callback(playerName);
+function loadProgressLocal() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) applyProgress(JSON.parse(raw));
+  } catch (e) {}
 }
 
+function applyProgress(data) {
+  if (data.highScore) highScore = data.highScore;
+  if (data.highestWave) highestWave = data.highestWave;
+}
+
+// ── Score submission ──────────────────────────────────────────────────────────
 function submitScoreToBoard(score, wave) {
   if (!window.submitScore) return;
-  getPlayerName((name) => { window.submitScore(name, score, wave); });
+  if (playerName) { window.submitScore(playerName, score, wave); return; }
+  // Guest with no name yet — show inline name input
+  pendingScoreSubmit = { score, wave };
+  showNameInput();
+}
+
+function showNameInput() {
+  const overlay = document.getElementById('name-input-overlay');
+  const inp = document.getElementById('player-name-input');
+  if (!overlay) return;
+  inp.value = '';
+  overlay.style.display = 'flex';
+  setTimeout(() => inp.focus(), 100);
+}
+
+function submitNameInput() {
+  const inp = document.getElementById('player-name-input');
+  const name = (inp.value || '').trim().substring(0, 16).toUpperCase() || 'ANONYMOUS';
+  playerName = name;
+  document.getElementById('name-input-overlay').style.display = 'none';
+  if (pendingScoreSubmit && window.submitScore) {
+    window.submitScore(playerName, pendingScoreSubmit.score, pendingScoreSubmit.wave);
+    pendingScoreSubmit = null;
+  }
+}
+
+function skipNameInput() {
+  playerName = 'ANONYMOUS';
+  document.getElementById('name-input-overlay').style.display = 'none';
+  if (pendingScoreSubmit && window.submitScore) {
+    window.submitScore(playerName, pendingScoreSubmit.score, pendingScoreSubmit.wave);
+    pendingScoreSubmit = null;
+  }
 }
 
 function showLeaderboard() {
@@ -992,34 +1153,57 @@ function showLeaderboard() {
   lb.style.display = 'flex'; lb.style.zIndex = '30';
   document.getElementById('lb-your-best').textContent = Math.floor(highScore || 0);
   if (window.loadLeaderboard) window.loadLeaderboard();
+  // Leaderboard is a menu break — signal gameplay stop
+  if (cgSDK()) cgSDK().game.gameplayStop();
 }
 
 function closeleaderboard() {
   document.getElementById('leaderboard-screen').style.display = 'none';
 }
 
-// ─── AD SYSTEM ───────────────────────────────────────────────────────────────
-const AD_UNIT_ID = 'YOUR_AD_UNIT_ID_HERE';
-let adCountdown = 0;
-let adInterval = null;
+// ─── AD SYSTEM (CrazyGames SDK v3) ──────────────────────────────────────────
+// CrazyGames SDK handles all ad UI — we just block/unblock our UI around calls.
+// Rules enforced:
+//   - Music muted only when ad actually starts (adStarted), unmuted on finish/error
+//   - No reward on adError
+//   - Buttons disabled while ad is loading/playing (UI blocked)
+//   - adError → silently restore button, no reward granted
 
-function watchAdForXP() {
-  const btn = document.getElementById('xp-ad-btn');
-  btn.disabled = true; btn.textContent = 'LOADING AD...';
-  if (window.TTMinis && typeof TTMinis.game !== 'undefined' && TTMinis.game.showRewardedAd) {
-    TTMinis.game.showRewardedAd({ adUnitId: AD_UNIT_ID, success: () => { grantXPReward(); }, fail: (err) => { console.warn('XP ad failed:', err); resetXPAdBtn(); } });
-  } else { showXPMockAd(); }
+// cgSDK() defined above in CrazyGames SDK INIT section
+
+function showAdBlocker(elId) {
+  const el = document.getElementById(elId);
+  if (el) { el.style.display = 'flex'; }
+}
+function hideAdBlocker(elId) {
+  const el = document.getElementById(elId);
+  if (el) { el.style.display = 'none'; }
 }
 
-function showXPMockAd() {
-  const adEl = document.getElementById('xp-ad-overlay');
-  adEl.style.display = 'flex';
-  let countdown = 5;
-  document.getElementById('xp-ad-countdown').textContent = countdown;
-  const iv = setInterval(() => {
-    countdown--; document.getElementById('xp-ad-countdown').textContent = countdown;
-    if (countdown <= 0) { clearInterval(iv); adEl.style.display = 'none'; grantXPReward(); }
-  }, 1000);
+// ─── XP REWARDED AD ──────────────────────────────────────────────────────────
+function watchAdForXP() {
+  const btn = document.getElementById('xp-ad-btn');
+  btn.disabled = true;
+  btn.textContent = 'LOADING...';
+  showAdBlocker('ad-loading-overlay');
+
+  const sdk = cgSDK();
+  if (sdk) {
+    sdk.ad.requestAd('rewarded', {
+      adStarted: () => { hideAdBlocker('ad-loading-overlay'); muteGameAudio(); },
+      adFinished: () => { unmuteGameAudio(); grantXPReward(); },
+      adError: (err) => {
+        console.warn('XP ad error:', err);
+        hideAdBlocker('ad-loading-overlay');
+        unmuteGameAudio();
+        resetXPAdBtn(); // no reward on error
+      },
+    });
+  } else {
+    // No SDK available (dev/browser mode) — grant reward directly for testing
+    hideAdBlocker('ad-loading-overlay');
+    grantXPReward();
+  }
 }
 
 function grantXPReward() {
@@ -1034,39 +1218,60 @@ function grantXPReward() {
 
 function resetXPAdBtn() {
   const btn = document.getElementById('xp-ad-btn');
-  if (btn) { btn.disabled = false; btn.textContent = '🎥 +300 XP'; }
+  if (btn) { btn.disabled = false; btn.textContent = '🎥 +300 XP'; btn.style.opacity = '1'; }
 }
 
-function showMockAd() {
-  const adEl = document.getElementById('ad-overlay');
-  adEl.style.display = 'flex'; adCountdown = 5;
-  document.getElementById('ad-countdown').textContent = adCountdown;
-  adInterval = setInterval(() => {
-    adCountdown--; document.getElementById('ad-countdown').textContent = adCountdown;
-    if (adCountdown <= 0) { clearInterval(adInterval); adEl.style.display = 'none'; continueGame(); }
-  }, 1000);
-}
-
-// ─── REVIVE (AD) ─────────────────────────────────────────────────────────────
+// ─── REVIVE REWARDED AD ──────────────────────────────────────────────────────
 function watchAdAndRevive() {
   const btn = document.getElementById('revive-ad-btn');
-  btn.disabled = true; btn.textContent = 'LOADING...';
-  if (window.TTMinis && typeof TTMinis.game !== 'undefined' && TTMinis.game.showRewardedAd) {
-    TTMinis.game.showRewardedAd({ adUnitId: AD_UNIT_ID, success: () => { reviveAndContinue(); },
-      fail: (err) => { console.warn('Revive ad failed:', err); btn.disabled = false; btn.innerHTML = '🎥 REVIVE &amp; CONTINUE'; btn.style.opacity = '1'; }
+  btn.disabled = true;
+  btn.textContent = 'LOADING...';
+  showAdBlocker('ad-loading-overlay');
+
+  const sdk = cgSDK();
+  if (sdk) {
+    sdk.ad.requestAd('rewarded', {
+      adStarted: () => { hideAdBlocker('ad-loading-overlay'); muteGameAudio(); },
+      adFinished: () => { unmuteGameAudio(); reviveAndContinue(); },
+      adError: (err) => {
+        console.warn('Revive ad error:', err);
+        hideAdBlocker('ad-loading-overlay');
+        unmuteGameAudio();
+        // no reward — restore button
+        btn.disabled = false;
+        btn.innerHTML = '🎥 REVIVE &amp; CONTINUE';
+        btn.style.opacity = '1';
+      },
     });
-  } else { showReviveMockAd(); }
+  } else {
+    hideAdBlocker('ad-loading-overlay');
+    reviveAndContinue();
+  }
 }
 
-function showReviveMockAd() {
-  const adEl = document.getElementById('ad-overlay');
-  adEl.style.display = 'flex'; let countdown = 5;
-  document.getElementById('ad-countdown').textContent = countdown;
-  const iv = setInterval(() => {
-    countdown--; document.getElementById('ad-countdown').textContent = countdown;
-    if (countdown <= 0) { clearInterval(iv); adEl.style.display = 'none'; reviveAndContinue(); }
-  }, 1000);
+// ─── AUDIO MUTE + GAME PAUSE HELPERS ────────────────────────────────────────
+let audioMutedForAd = false;
+let stateBeforeAd = null;
+
+function pauseForAd() {
+  // Freeze game loop (update() checks state === 'playing')
+  stateBeforeAd = state;
+  state = 'adpaused';
+  // Mute audio only when ad actually starts (not on request — per CG requirements)
+  audioMutedForAd = true;
+  if (audioCtx) audioCtx.suspend();
 }
+
+function resumeAfterAd() {
+  audioMutedForAd = false;
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  // State is restored by the calling function (grantXPReward, reviveAndContinue, etc.)
+  // We just ensure audio is back — state management stays with ad callbacks
+}
+
+// Legacy aliases used elsewhere
+function muteGameAudio() { pauseForAd(); }
+function unmuteGameAudio() { resumeAfterAd(); }
 
 function reviveAndContinue() {
   document.getElementById('upgrade-screen').style.display = 'none';
@@ -1099,16 +1304,18 @@ function continueGame() {
   spawnWave();
   state = 'playing';
   if (!musicPlaying) startBgMusic();
+  if (cgSDK()) cgSDK().game.gameplayStart();
 }
 
 // ─── START ────────────────────────────────────────────────────────────────────
 function startGame() {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('onboarding-overlay').style.display = 'none';
+  document.getElementById('joystick-zone').style.pointerEvents = 'all';
   initGame();
   state = 'playing';
   startBgMusic();
-  if (window.TTMinis) TTMinis.game.setLoadingProgress(1);
+  if (cgSDK()) cgSDK().game.gameplayStart();
 }
 
 // ─── JOYSTICK ────────────────────────────────────────────────────────────────
@@ -1198,7 +1405,9 @@ function startOnboarding() {
   startBgMusic();
   obStep = 0;
   obShowStep(0);
-  if (window.TTMinis) TTMinis.game.setLoadingProgress(1);
+  // Disable joystick zone so onboarding overlay buttons are tappable
+  document.getElementById('joystick-zone').style.pointerEvents = 'none';
+  if (cgSDK()) cgSDK().game.gameplayStart();
 }
 
 function obShowStep(step) {
@@ -1240,7 +1449,9 @@ function obAdvance() {
 function obSkip() {
   clearTimeout(obTimer);
   document.getElementById('onboarding-overlay').style.display = 'none';
+  document.getElementById('joystick-zone').style.pointerEvents = 'all';
   state = 'playing';
+  if (cgSDK()) cgSDK().game.gameplayStart();
 }
 
 // ─── START SCREEN PREVIEW ────────────────────────────────────────────────────
@@ -1347,7 +1558,7 @@ function scheduleMusicLoop() {
 }
 
 // ─── BOOT ────────────────────────────────────────────────────────────────────
-if (window.TTMinis) TTMinis.game.setLoadingProgress(0.8);
+initCrazyGamesUser(); // non-blocking: loads local progress instantly, CG init async
 requestAnimationFrame(loop);
 
 // ─── SCALING ─────────────────────────────────────────────────────────────────
