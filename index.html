@@ -6,10 +6,10 @@
 <title>Polygon Rampage</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <!-- Firebase -->
+<!-- Firebase (ES modules — works on localhost and CrazyGames) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, push, query, orderByChild, limitToLast, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
+  import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   const firebaseConfig = {
     apiKey: "AIzaSyDAvJDeXr3DJhCD2bOiUplSjbZmKjXkOCo",
     authDomain: "polygon-rampage.firebaseapp.com",
@@ -19,42 +19,50 @@
     messagingSenderId: "1073453912855",
     appId: "1:1073453912855:web:9cd387b6cc91fccec39d52"
   };
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+    // Store one entry per player name (overwrite if new score is higher)
+    // This ensures the leaderboard shows top 5 UNIQUE players, not 5 entries from same person
+    window.submitScore = function(name, score, wave) {
+      // One entry per player — overwrite only if new score is higher
+      // This ensures top 5 = 5 unique players, not 5 runs from same person
+      const playerRef = ref(db, 'scores/' + name.replace(/[.#$[\]]/g, '_'));
+      get(playerRef).then(snap => {
+        const existing = snap.val();
+        if (!existing || score > existing.score) {
+          set(playerRef, { name, score, wave, ts: Date.now() });
+        }
+      });
+    };
 
-  window.submitScore = function(name, score, wave) {
-    const scoresRef = ref(db, 'scores');
-    push(scoresRef, { name: name, score: score, wave: wave, ts: Date.now() });
-  };
-
-  window.loadLeaderboard = function() {
-    const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(5));
-    onValue(scoresRef, (snapshot) => {
-      const entries = [];
-      snapshot.forEach(child => entries.push(child.val()));
-      entries.sort((a, b) => b.score - a.score);
-      renderLeaderboard(entries);
-    });
-  };
-
-  function renderLeaderboard(entries) {
-    const el = document.getElementById('leaderboard-list');
-    if (!el) return;
-    if (entries.length === 0) {
-      el.innerHTML = '<div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">NO SCORES YET — BE THE FIRST!</div>';
-      return;
-    }
-    const medals = ['🥇','🥈','🥉','4.','5.'];
-    el.innerHTML = entries.map((e, i) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #1a1a2e;">
-        <span style="color:#f0c040;font-size:0.38rem;min-width:1.5rem;">${medals[i]}</span>
-        <span style="color:#ccc;font-size:0.38rem;flex:1;margin-left:0.4rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.name}</span>
-        <span style="color:#fff;font-size:0.38rem;margin-left:0.5rem;">${Math.floor(e.score)}</span>
-        <span style="color:#555;font-size:0.3rem;margin-left:0.5rem;">W${e.wave}</span>
-      </div>
-    `).join('');
-  }
+    window.loadLeaderboard = function() {
+      const el = document.getElementById('leaderboard-list');
+      if (el) el.innerHTML = '<div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">LOADING...</div>';
+      // Use get() for a clean one-time fetch — avoids stale listener buildup from onValue
+      // Fetch all scores, sort client-side to avoid Firebase ordering edge cases
+      get(ref(db, 'scores')).then((snapshot) => {
+        const entries = [];
+        snapshot.forEach(child => {
+          const v = child.val();
+          if (v && typeof v.score === 'number') entries.push(v);
+        });
+        entries.sort((a, b) => b.score - a.score);
+        const top5 = entries.slice(0, 5);
+        if (!el) return;
+        if (top5.length === 0) {
+          el.innerHTML = '<div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">NO SCORES YET — BE THE FIRST!</div>';
+          return;
+        }
+        const medals = ['🥇','🥈','🥉','4.','5.'];
+        el.innerHTML = top5.map((e, i) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #1a1a2e;"><span style="color:#f0c040;font-size:0.38rem;min-width:1.5rem;">${medals[i]}</span><span style="color:#ccc;font-size:0.38rem;flex:1;margin-left:0.4rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.name}</span><span style="color:#fff;font-size:0.38rem;margin-left:0.5rem;">${Math.floor(e.score)}</span><span style="color:#555;font-size:0.3rem;margin-left:0.5rem;">W${e.wave}</span></div>`).join('');
+      }).catch(err => {
+        console.warn('Leaderboard fetch failed:', err);
+        if (el) el.innerHTML = '<div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">COULD NOT LOAD — CHECK CONNECTION</div>';
+      });
+    };
+  } catch(e) { console.warn('Firebase init failed:', e); }
 </script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -73,10 +81,11 @@
   #game-container {
     position: fixed;
     left: 50%;
-    top: env(safe-area-inset-top);
+    top: env(safe-area-inset-top, 0px);
     width: 480px;
     height: 720px;
     transform-origin: top center;
+    transform: translateX(-50%);
   }
   canvas { display: block; }
   .overlay {
@@ -233,7 +242,7 @@
   </div>
 
   <div class="overlay" id="leaderboard-screen" style="display:none;">
-    <h2 style="font-size:0.8rem;letter-spacing:0.15em;margin-bottom:0.5rem;color:#f0c040;">🏆 TOP 5 ALL TIME</h2>
+    <h2 style="font-size:0.8rem;letter-spacing:0.15em;margin-bottom:0.5rem;">🏆 TOP 5 ALL TIME</h2>
     <div id="leaderboard-list" style="width:82%;max-width:320px;margin-bottom:1.5rem;min-height:120px;">
       <div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">LOADING...</div>
     </div>
@@ -312,6 +321,7 @@ let lastTime = 0;
 let shootTimer = 0;
 let waveTimer = 0;
 let warningTimer = 0;
+let nukeFlash = 0; // frames of white screen flash after nuke
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -493,7 +503,7 @@ function initGame() {
 
 function spawnWave() {
   powerUpSpawnCount = 0;
-  const puCount = Math.floor(Math.random() * 3);
+  const puCount = 1 + Math.floor(Math.random() * 3);
   for (let i = 0; i < puCount; i++) {
     const delay = 3000 + Math.random() * 12000;
     setTimeout(() => {
@@ -520,6 +530,7 @@ const POWERUP_TYPES = [
   { id: 'rapid',  label: 'RAPID FIRE',  color: '#ff9900', icon: '★', duration: 600 },
   { id: 'shield', label: 'SHIELD',      color: '#44ff88', icon: '◈', duration: 600 },
   { id: 'heart',  label: 'HEALTH UP',   color: '#ff4466', icon: '♥', duration: 0 },
+  { id: 'nuke',   label: 'NUKE',        color: '#ff6600', icon: '☢', duration: 0 },
 ];
 
 function spawnPowerUp() {
@@ -538,6 +549,10 @@ function activatePowerUp(type) {
     else { player.hp = Math.min(player.maxHp, player.hp + 1); showWarning('♥ HEALTH RESTORED!'); }
     return;
   }
+  if (type === 'nuke') {
+    activateNuke();
+    return;
+  }
   if (player.activePowerUp === type) clearTimeout(player.powerUpTimer);
   player.activePowerUp = type;
   const def = POWERUP_TYPES.find(p => p.id === type);
@@ -554,6 +569,38 @@ function expirePowerUp(type) {
   if (type === 'shield') player.shield = false;
   if (player.activePowerUp === type) player.activePowerUp = null;
   showWarning(POWERUP_TYPES.find(p=>p.id===type).label + ' EXPIRED');
+}
+
+function activateNuke() {
+  // Kill every enemy on screen with a big explosion effect
+  let killCount = 0;
+  for (let e of enemies) {
+    if (e.dead) continue;
+    // Burst of particles at each enemy position
+    spawnParticles(e.x, e.y, '#ff6600', 18);
+    spawnParticles(e.x, e.y, '#ffcc00', 10);
+    spawnParticles(e.x, e.y, '#ffffff', 6);
+    // Drop XP orbs as normal
+    for (let i = 0; i < 3; i++) {
+      spawnXPOrb(e.x + (Math.random()-0.5)*30, e.y + (Math.random()-0.5)*30, Math.floor(e.xpValue/3));
+    }
+    score += e.xpValue;
+    e.dead = true;
+    killCount++;
+  }
+  // Screen flash effect
+  nukeFlash = 18;
+  showWarning('☢ NUKE! ' + killCount + ' ENEMIES DESTROYED!');
+  // SFX — deep boom
+  sfxNuke();
+}
+
+function sfxNuke() {
+  playTone(60, 'sine', 0.8, 0.6);
+  playTone(40, 'sine', 1.0, 0.5);
+  playNoise(0.5, 0.8);
+  setTimeout(() => playTone(80, 'sawtooth', 0.4, 0.3), 100);
+  setTimeout(() => playNoise(0.3, 0.4), 200);
 }
 
 function drawPowerUps() {
@@ -837,6 +884,16 @@ function draw() {
     ctx.fillStyle = '#fff'; ctx.font = 'bold 1.2rem Courier New'; ctx.textAlign = 'center';
     ctx.fillText('WAVE '+(wave-1)+' CLEARED', W/2, H/2); ctx.restore();
   }
+
+  // Nuke flash — white/orange screen blast that fades out
+  if (nukeFlash > 0) {
+    ctx.save();
+    ctx.globalAlpha = (nukeFlash / 18) * 0.55;
+    ctx.fillStyle = nukeFlash > 10 ? '#ffffff' : '#ff6600';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    nukeFlash--;
+  }
 }
 
 // ─── GAME LOOP ────────────────────────────────────────────────────────────────
@@ -873,6 +930,8 @@ function showUpgradeScreen() {
     hsEl.textContent = '★ NEW BEST: ' + Math.floor(highScore);
     hsEl.style.color = '#ffee44';
     hsEl.style.animation = 'pulse 0.6s ease-in-out 3';
+    // Trigger CrazyGames site celebration on new high score
+    if (cgSDK()) cgSDK().game.happytime();
   } else {
     hsEl.textContent = 'ALL-TIME BEST: ' + Math.floor(highScore || 0);
     hsEl.style.color = '#f0c040';
@@ -903,7 +962,7 @@ async function checkAdblockThenShowAdBtns() {
   if (!sdk) return; // dev/browser mode — keep buttons visible for testing
 
   try {
-    const { hasAdblock } = await sdk.ad.isAdblockDetected();
+    const hasAdblock = await sdk.ad.hasAdblock();
     if (hasAdblock) {
       // Disable ad buttons with clear notice per CrazyGames rules:
       // "Do not keep the rewarded ads clickable but without effect"
@@ -923,7 +982,7 @@ async function checkAdblockThenShowAdBtns() {
       }
     }
   } catch (e) {
-    // isAdblockDetected failed — leave buttons as-is
+    // hasAdblock failed — leave buttons as-is
     console.warn('Adblock check failed:', e);
   }
 }
@@ -1058,33 +1117,45 @@ async function initCrazyGamesUser() {
       window.location.reload();
     }
   });
+
+  // Respect muteAudio game setting (e.g. user has CrazyGames audio disabled)
+  const settings = sdk.game.settings;
+  if (settings && settings.muteAudio) stopBgMusic();
+  sdk.game.addSettingsChangeListener((newSettings) => {
+    if (newSettings.muteAudio) stopBgMusic();
+    else if (!musicPlaying && state === 'playing') startBgMusic();
+  });
+
+  // Signal that loading is complete
+  sdk.game.loadingStop();
 }
 
 // ── Progress save / load ──────────────────────────────────────────────────────
 const SAVE_KEY = 'polygonRampageSave';
 
-async function saveProgress() {
-  const data = JSON.stringify({ highScore: highScore || 0, highestWave: highestWave || 0 });
+function saveProgress() {
   const sdk = cgSDK();
   if (sdk) {
-    try { await sdk.data.setItem(SAVE_KEY, data); } catch (e) { console.warn('CG save failed:', e); }
-  }
-  // Always mirror to localStorage as guest/offline fallback
-  try { localStorage.setItem(SAVE_KEY, data); } catch (e) {}
-}
-
-async function loadProgressCG() {
-  const sdk = cgSDK();
-  let data = null;
-  if (sdk) {
+    // Use CG Data module exclusively on CrazyGames — it handles guests via localStorage internally
+    // Read before write to avoid losing progress (per CG docs)
     try {
-      const raw = await sdk.data.getItem(SAVE_KEY);
-      if (raw) data = JSON.parse(raw);
-    } catch (e) { console.warn('CG load failed:', e); }
+      const existing = sdk.data.getItem(SAVE_KEY);
+      const prev = existing ? JSON.parse(existing) : {};
+      const merged = {
+        highScore: Math.max(highScore || 0, prev.highScore || 0),
+        highestWave: Math.max(highestWave || 0, prev.highestWave || 0),
+      };
+      sdk.data.setItem(SAVE_KEY, JSON.stringify(merged));
+    } catch (e) { console.warn('CG save failed:', e); }
+  } else {
+    // Not on CrazyGames — use localStorage directly
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        highScore: highScore || 0,
+        highestWave: highestWave || 0,
+      }));
+    } catch (e) {}
   }
-  // Fallback to localStorage if no cloud data
-  if (!data) loadProgressLocal();
-  else applyProgress(data);
 }
 
 function loadProgressLocal() {
@@ -1138,14 +1209,19 @@ function skipNameInput() {
 }
 
 function showLeaderboard() {
+  // Hide upgrade screen so leaderboard has full canvas, unobstructed
+  document.getElementById('upgrade-screen').style.display = 'none';
   const lb = document.getElementById('leaderboard-screen');
   lb.style.display = 'flex'; lb.style.zIndex = '30';
   document.getElementById('lb-your-best').textContent = Math.floor(highScore || 0);
   if (window.loadLeaderboard) window.loadLeaderboard();
+  if (cgSDK()) cgSDK().game.gameplayStop();
 }
 
 function closeleaderboard() {
   document.getElementById('leaderboard-screen').style.display = 'none';
+  // Restore upgrade screen when going back
+  document.getElementById('upgrade-screen').style.display = 'flex';
 }
 
 // ─── AD SYSTEM (CrazyGames SDK v3) ──────────────────────────────────────────
@@ -1236,16 +1312,29 @@ function watchAdAndRevive() {
   }
 }
 
-// ─── AUDIO MUTE HELPERS ──────────────────────────────────────────────────────
+// ─── AUDIO MUTE + GAME PAUSE HELPERS ────────────────────────────────────────
 let audioMutedForAd = false;
-function muteGameAudio() {
+let stateBeforeAd = null;
+
+function pauseForAd() {
+  // Freeze game loop (update() checks state === 'playing')
+  stateBeforeAd = state;
+  state = 'adpaused';
+  // Mute audio only when ad actually starts (not on request — per CG requirements)
   audioMutedForAd = true;
   if (audioCtx) audioCtx.suspend();
 }
-function unmuteGameAudio() {
+
+function resumeAfterAd() {
   audioMutedForAd = false;
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  // State is restored by the calling function (grantXPReward, reviveAndContinue, etc.)
+  // We just ensure audio is back — state management stays with ad callbacks
 }
+
+// Legacy aliases used elsewhere
+function muteGameAudio() { pauseForAd(); }
+function unmuteGameAudio() { resumeAfterAd(); }
 
 function reviveAndContinue() {
   document.getElementById('upgrade-screen').style.display = 'none';
@@ -1425,6 +1514,7 @@ function obSkip() {
   document.getElementById('onboarding-overlay').style.display = 'none';
   document.getElementById('joystick-zone').style.pointerEvents = 'all';
   state = 'playing';
+  if (cgSDK()) cgSDK().game.gameplayStart();
 }
 
 // ─── START SCREEN PREVIEW ────────────────────────────────────────────────────
@@ -1531,7 +1621,7 @@ function scheduleMusicLoop() {
 }
 
 // ─── BOOT ────────────────────────────────────────────────────────────────────
-initCrazyGamesUser(); // load progress + resolve CG username
+initCrazyGamesUser(); // non-blocking: loads local progress instantly, CG init async
 requestAnimationFrame(loop);
 
 // ─── SCALING ─────────────────────────────────────────────────────────────────
