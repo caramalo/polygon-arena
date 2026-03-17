@@ -242,7 +242,7 @@
   </div>
 
   <div class="overlay" id="leaderboard-screen" style="display:none;">
-    <h2 style="font-size:0.8rem;letter-spacing:0.15em;margin-bottom:0.5rem;#f0c040;">🏆 TOP 5 ALL TIME</h2>
+    <h2 style="font-size:0.8rem;letter-spacing:0.15em;margin-bottom:0.5rem;">🏆 TOP 5 ALL TIME</h2>
     <div id="leaderboard-list" style="width:82%;max-width:320px;margin-bottom:1.5rem;min-height:120px;">
       <div style="color:#444;font-size:0.38rem;text-align:center;margin-top:1rem;">LOADING...</div>
     </div>
@@ -503,7 +503,7 @@ function initGame() {
 
 function spawnWave() {
   powerUpSpawnCount = 0;
-  const puCount = 1 + Math.floor(Math.random() * 3);
+  const puCount = 4 + Math.floor(Math.random() * 3);
   for (let i = 0; i < puCount; i++) {
     const delay = 3000 + Math.random() * 12000;
     setTimeout(() => {
@@ -557,7 +557,7 @@ function activatePowerUp(type) {
   player.activePowerUp = type;
   const def = POWERUP_TYPES.find(p => p.id === type);
   showWarning(def.label + ' ACTIVE!');
-  if (type === 'speed') player.speed = PLAYER_SPEED * 1.10;
+  if (type === 'speed') player.speed = PLAYER_SPEED * 1.5;
   else if (type === 'rapid') player.rapidFire = true;
   else if (type === 'shield') player.shield = true;
   player.powerUpTimer = setTimeout(() => { expirePowerUp(type); }, 10000);
