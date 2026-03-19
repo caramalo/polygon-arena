@@ -132,17 +132,19 @@
   .btn.accent { border-color: #f0c040; color: #f0c040; }
   .btn.accent:hover { background: #f0c040; color: #0a0a0f; }
   .btn.disabled { opacity: 0.3; pointer-events: none; }
-  #upgrade-screen { display: none; }
-  #upgrade-screen .xp-display { font-size: 0.65rem; color: #f0c040; letter-spacing: 0.1em; margin-bottom: 1.2rem; }
-  #upgrade-screen h2 { color: #fff; font-size: 0.9rem; letter-spacing: 0.15em; margin-bottom: 0.5rem; text-transform: uppercase; text-align: center; }
-  #upgrade-screen .score-display { color: #888; font-size: 0.8rem; letter-spacing: 0.15em; margin-bottom: 2rem; }
-  #upgrade-options { display: flex; flex-direction: column; gap: 0.5rem; width: 80%; max-width: 320px; margin-bottom: 1.5rem; }
-  .upgrade-btn { background: none; border: 1px solid #333; color: #ccc; font-family: 'Press Start 2P', 'Courier New', monospace; font-size: 0.82rem; letter-spacing: 0.1em; padding: 0.7em 1em; cursor: pointer; text-align: left; transition: all 0.15s; display: flex; justify-content: space-between; align-items: center; }
+  #upgrade-screen { display: none; height: 100%; }
+  #upgrade-screen .xp-display { font-size: 0.6rem; color: #f0c040; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
+  #upgrade-screen h2 { color: #fff; font-size: 0.8rem; letter-spacing: 0.12em; margin-bottom: 0.2rem; text-transform: uppercase; text-align: center; }
+  #upgrade-screen .score-display { color: #888; font-size: 0.55rem; letter-spacing: 0.1em; margin-bottom: 0.1rem; }
+  #upgrade-options { display: flex; flex-direction: column; gap: 0.35rem; }
+  .upgrade-btn { background: none; border: 1px solid #333; color: #ccc; font-family: 'Press Start 2P', 'Courier New', monospace; font-size: 0.55rem; letter-spacing: 0.08em; padding: 0.55em 0.7em; cursor: pointer; text-align: left; transition: all 0.15s; display: flex; justify-content: space-between; align-items: flex-start; width: 100%; box-sizing: border-box; }
   .upgrade-btn:hover:not(.disabled) { border-color: #f0c040; color: #f0c040; }
   .upgrade-btn.disabled { opacity: 0.25; pointer-events: none; }
-  .upgrade-btn .cost { color: #f0c040; font-size: 0.75rem; }
+  .upgrade-btn .cost { color: #f0c040; font-size: 0.55rem; white-space: nowrap; margin-left: 0.5rem; flex-shrink: 0; }
   .upgrade-btn.disabled .cost { color: #555; }
-  .shape-preview { margin: 1rem 0 1.5rem; }
+  .upgrade-btn .btn-sub { display: block; font-size: 0.28rem; color: #555; margin-top: 0.2rem; letter-spacing: 0.06em; line-height: 1.4; }
+  .upgrade-btn:hover:not(.disabled) .btn-sub { color: #a0a000; }
+  .shape-preview { margin: 0; }
   #hud { position: absolute; top: 0; left: 0; right: 0; pointer-events: none; z-index: 5; padding: 12px 14px 0; }
   #xp-bar-bg { width: 100%; height: 5px; background: #1a1a2e; border-radius: 3px; margin-bottom: 6px; }
   #xp-bar { height: 100%; background: #f0c040; border-radius: 3px; width: 0%; transition: width 0.1s; }
@@ -162,6 +164,9 @@
   @keyframes ob-drift { 0%{transform:translate(-50%,-50%);}25%{transform:translate(calc(-50% + 22px),calc(-50% + 12px));}50%{transform:translate(calc(-50% + 10px),calc(-50% + 28px));}75%{transform:translate(calc(-50% - 18px),calc(-50% + 8px));}100%{transform:translate(-50%,-50%);} }
   .ob-dot { width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.2);transition:background 0.3s; }
   .ob-dot.active { background:#fff; }
+  .cat-box { transition: opacity 0.15s, transform 0.1s; }
+  .cat-box:hover { opacity: 0.8; transform: scale(0.97); }
+  .cat-box:active { transform: scale(0.94); }
 </style>
 </head>
 <body>
@@ -250,19 +255,64 @@
     <button class="btn accent" onclick="closeleaderboard()">BACK</button>
   </div>
 
-  <div class="overlay" id="upgrade-screen" style="justify-content:flex-start;padding-top:1.5rem;overflow-y:auto;">
-    <h2>SHAPE DESTROYED</h2>
+  <div class="overlay" id="upgrade-screen" style="justify-content:flex-start;padding-top:0.8rem;overflow-y:hidden;display:none;">
+    <h2 style="margin-bottom:0.3rem;">SHAPE DESTROYED</h2>
     <div class="score-display" id="upgrade-score"></div>
     <div class="score-display" id="upgrade-highscore" style="color:#f0c040;margin-top:0.2rem;"></div>
     <div id="secret-hint" style="display:none;font-size:0.38rem;letter-spacing:0.1em;margin-top:0.3rem;text-align:center;padding:0 1rem;"></div>
-    <div class="xp-display">⬡ <span id="upgrade-xp">0</span> XP BANKED</div>
-    <canvas id="upgrade-preview" width="90" height="90" class="shape-preview"></canvas>
-    <div id="upgrade-options"></div>
-    <div style="display:flex;flex-direction:column;gap:0.3rem;width:80%;max-width:320px;margin-bottom:0.8rem;">
-      <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="border-color:#22cc44;color:#22cc44;font-size:0.65rem;padding:0.6em 1em;letter-spacing:0.12em;line-height:1.2;">🎥 +300 XP</button>
-      <button class="btn" id="revive-ad-btn" onclick="watchAdAndRevive()" style="border-color:#ff4466;color:#ff4466;font-size:0.65rem;padding:0.6em 1em;letter-spacing:0.12em;line-height:1.2;">🎥 REVIVE &amp; CONTINUE</button>
-      <button class="btn accent" id="respawn-btn" onclick="continueGame()" style="font-size:0.65rem;padding:0.6em 1em;letter-spacing:0.12em;line-height:1.2;">▶ RESPAWN</button>
-      <button class="btn" onclick="showLeaderboard()" style="font-size:0.65rem;border-color:#f0c040;color:#f0c040;padding:0.6em 1em;letter-spacing:0.1em;line-height:1.2;">🏆 LEADERBOARD</button>
+    <div class="xp-display" style="margin-bottom:0.6rem;">⬡ <span id="upgrade-xp">0</span> XP BANKED</div>
+    <canvas id="upgrade-preview" width="100" height="100" class="shape-preview" style="margin:0.3rem 0 0.6rem;flex-shrink:0;"></canvas>
+
+    <!-- Scrollable middle area: category grid OR detail panel -->
+    <div id="upgrade-scroll-area" style="flex:1;overflow-y:auto;width:88%;max-width:340px;min-height:0;">
+
+      <!-- Category grid view -->
+      <div id="upgrade-category-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;padding-bottom:0.4rem;">
+        <div class="cat-box" onclick="openUpgradeCategory('shape')" style="border:1px solid #a44;background:rgba(160,40,40,0.18);padding:0.6rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
+          <div style="font-size:1.1rem;margin-bottom:0.2rem;">◈</div>
+          <div style="font-size:0.34rem;letter-spacing:0.1em;color:#ff8888;">SHAPE</div>
+          <div style="font-size:0.28rem;color:#aa5555;margin-top:0.1rem;">EVOLVE &amp; WEAPONS</div>
+        </div>
+        <div class="cat-box" onclick="openUpgradeCategory('stats')" style="border:1px solid #44a;background:rgba(40,40,160,0.18);padding:0.6rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
+          <div style="font-size:1.1rem;margin-bottom:0.2rem;">⚡</div>
+          <div style="font-size:0.34rem;letter-spacing:0.1em;color:#88aaff;">PLAYER STATS</div>
+          <div style="font-size:0.28rem;color:#4466aa;margin-top:0.1rem;">HP, SPEED, XP</div>
+        </div>
+        <div class="cat-box" onclick="openUpgradeCategory('weapon')" style="border:1px solid #2a4;background:rgba(20,120,40,0.18);padding:0.6rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
+          <div style="font-size:1.1rem;margin-bottom:0.2rem;">🔫</div>
+          <div style="font-size:0.34rem;letter-spacing:0.1em;color:#44ff88;">WEAPON MODS</div>
+          <div style="font-size:0.28rem;color:#228844;margin-top:0.1rem;">PIERCE, SPREAD...</div>
+        </div>
+        <div class="cat-box" onclick="openUpgradeCategory('passive')" style="border:1px solid #84a;background:rgba(100,20,160,0.18);padding:0.6rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
+          <div style="font-size:1.1rem;margin-bottom:0.2rem;">✦</div>
+          <div style="font-size:0.34rem;letter-spacing:0.1em;color:#cc88ff;">PASSIVES</div>
+          <div style="font-size:0.28rem;color:#7744aa;margin-top:0.1rem;">THORNS, REGEN...</div>
+        </div>
+        <!-- Full-width reset box -->
+        <div class="cat-box" onclick="confirmResetUpgrades()" style="grid-column:1/-1;border:1px solid #666;background:rgba(80,80,80,0.15);padding:0.5rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
+          <div style="font-size:1rem;margin-bottom:0.15rem;">↺</div>
+          <div style="font-size:0.34rem;letter-spacing:0.1em;color:#aaa;">RESET UPGRADES</div>
+          <div style="font-size:0.28rem;color:#666;margin-top:0.1rem;">REFUND ALL SPENT XP</div>
+        </div>
+      </div>
+
+      <!-- Category detail panel -->
+      <div id="upgrade-panel" style="display:none;">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+          <button onclick="closeUpgradeCategory()" style="background:none;border:1px solid #333;color:#888;font-family:'Press Start 2P','Courier New',monospace;font-size:0.3rem;padding:0.3em 0.7em;cursor:pointer;letter-spacing:0.1em;flex-shrink:0;">◀ BACK</button>
+          <div id="upgrade-panel-title" style="font-size:0.38rem;letter-spacing:0.1em;color:#fff;"></div>
+        </div>
+        <div id="upgrade-options" style="display:flex;flex-direction:column;gap:0.35rem;padding-bottom:0.4rem;"></div>
+      </div>
+
+    </div>
+
+    <!-- Action buttons — pinned at bottom, never scroll away -->
+    <div style="flex-shrink:0;display:flex;flex-direction:column;gap:0.3rem;width:88%;max-width:340px;padding:0.5rem 0 0.6rem;">
+      <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="border-color:#22cc44;color:#22cc44;font-size:0.58rem;padding:0.5em 1em;letter-spacing:0.1em;line-height:1.2;">🎥 +300 XP</button>
+      <button class="btn" id="revive-ad-btn" onclick="watchAdAndRevive()" style="border-color:#ff4466;color:#ff4466;font-size:0.58rem;padding:0.5em 1em;letter-spacing:0.1em;line-height:1.2;">🎥 REVIVE &amp; CONTINUE</button>
+      <button class="btn accent" id="respawn-btn" onclick="continueGame()" style="font-size:0.58rem;padding:0.5em 1em;letter-spacing:0.1em;line-height:1.2;">▶ RESPAWN</button>
+      <button class="btn" onclick="showLeaderboard()" style="font-size:0.58rem;border-color:#f0c040;color:#f0c040;padding:0.5em 1em;letter-spacing:0.1em;line-height:1.2;">🏆 LEADERBOARD</button>
     </div>
   </div>
 
@@ -347,6 +397,21 @@ function createPlayer() {
     powerUpTimer: null,
     rapidFire: false,
     shield: false,
+    upgrades: {},
+    baseSpeed: PLAYER_SPEED,
+    magnetRange: 80,
+    overclockStacks: 0,
+    bulletBounces: 2,
+    piercingShot: false,
+    spreadShot: false,
+    bigBullets: false,
+    xpBoost: false,
+    armor: false,
+    armorActive: false,
+    thorns: false,
+    regen: false,
+    bulletShield: false,
+    salvage: false,
   };
 }
 
@@ -396,6 +461,21 @@ function spawnEnemy(type) {
     powerUpTimer: null,
     rapidFire: false,
     shield: false,
+    upgrades: {},
+    baseSpeed: PLAYER_SPEED,
+    magnetRange: 80,
+    overclockStacks: 0,
+    bulletBounces: 2,
+    piercingShot: false,
+    spreadShot: false,
+    bigBullets: false,
+    xpBoost: false,
+    armor: false,
+    armorActive: false,
+    thorns: false,
+    regen: false,
+    bulletShield: false,
+    salvage: false,
   };
 }
 
@@ -647,14 +727,25 @@ function update(dt) {
   if (player.invincible > 0) player.invincible--;
 
   shootTimer++;
-  const shootThreshold = player.rapidFire ? 16 : 28;
+  const baseThresh = 28 - (player.overclockStacks||0)*4;
+  const shootThreshold = player.rapidFire ? Math.max(8, baseThresh-10) : Math.max(10, baseThresh);
   if (shootTimer > shootThreshold) {
     shootTimer = 0;
     for (let i=0;i<player.sides;i++) {
       if (player.weapons[i] === 'gun') {
         const a = getSideOutwardAngle(player.angle, i, player.sides);
         const mid = getSideMidpoint(player.x, player.y, player.angle, i, player.sides, player.r);
-        bullets.push({ x: mid.x, y: mid.y, vx: Math.cos(a)*BULLET_SPEED, vy: Math.sin(a)*BULLET_SPEED, r: 5, color:'#f44', owner:'player', life:300, bounces:2 });
+        const br = player.bigBullets ? 7 : 5;
+        const bounces = player.bulletBounces || 2;
+        const pierce = player.piercingShot || false;
+        if (player.spreadShot) {
+          for (let s=-1;s<=1;s++) {
+            const sa = a + s*0.18;
+            bullets.push({ x: mid.x, y: mid.y, vx: Math.cos(sa)*BULLET_SPEED, vy: Math.sin(sa)*BULLET_SPEED, r: br, color:'#f44', owner:'player', life:300, bounces, pierce });
+          }
+        } else {
+          bullets.push({ x: mid.x, y: mid.y, vx: Math.cos(a)*BULLET_SPEED, vy: Math.sin(a)*BULLET_SPEED, r: br, color:'#f44', owner:'player', life:300, bounces, pierce });
+        }
       }
     }
   }
@@ -711,7 +802,16 @@ function update(dt) {
         const weapon = weaponAtAngle(player, hitAngle);
         if (weapon === 'spike') { killEnemy(e); sfxSpikeKill(); }
         else if (player.shield) { player.shield = false; player.activePowerUp = null; showWarning('SHIELD BROKEN!'); spawnParticles(player.x, player.y, '#44ff88', 16); player.invincible = 60; }
-        else { playerHit(); }
+        else {
+          if (player.thorns) {
+            // Thorns: instantly kill the enemy on contact (player still takes the hit)
+            killEnemy(e);
+            spawnParticles(e.x, e.y, '#aa44ff', 16);
+            spawnParticles(e.x, e.y, '#ffffff', 6);
+            sfxSpikeKill();
+          }
+          playerHit();
+        }
       }
     }
   }
@@ -721,7 +821,9 @@ function update(dt) {
     for (let e of enemies) {
       if (e.dead) continue;
       if (dist(b, e) < b.r+e.r) {
-        b.life = 0; e.hp -= 1 + wave*0.2; e.invincible = 8; spawnParticles(b.x, b.y, b.color, 4);
+        if (!b.pierce) b.life = 0;
+        const dmg = player.bigBullets ? (1 + wave*0.2)*1.5 : (1 + wave*0.2);
+        e.hp -= dmg; e.invincible = 8; spawnParticles(b.x, b.y, b.color, 4);
         if (e.hp <= 0) { killEnemy(e); sfxBulletKill(); }
       }
     }
@@ -730,6 +832,7 @@ function update(dt) {
   for (let b of bullets) {
     if (b.owner !== 'enemy') continue;
     if (dist(b, player) < b.r+player.r && player.invincible <= 0) {
+      if (player.bulletShield && Math.random() < 0.20) { b.life = 0; spawnParticles(b.x, b.y, '#aa44ff', 4); showWarning('BULLET DEFLECTED!'); continue; }
       b.life = 0; spawnParticles(b.x, b.y, b.color, 4);
       if (player.shield) { player.shield = false; player.activePowerUp = null; showWarning('SHIELD BROKEN!'); spawnParticles(player.x, player.y, '#44ff88', 16); }
       else { playerHit(); }
@@ -746,7 +849,8 @@ function update(dt) {
   for (let o of xpOrbs) {
     o.vx *= 0.96; o.vy *= 0.96; o.x += o.vx; o.y += o.vy; o.life--;
     const od = dist(o, player);
-    if (od < 80) { o.vx += (player.x-o.x)/od * 0.8; o.vy += (player.y-o.y)/od * 0.8; }
+    const magnetR = player.magnetRange || 80;
+    if (od < magnetR) { o.vx += (player.x-o.x)/od * 0.8; o.vy += (player.y-o.y)/od * 0.8; }
     if (od < player.r+o.r+4) { gainXP(o.amount); o.life = 0; spawnParticles(o.x, o.y, '#f0c040', 3); }
   }
   xpOrbs = xpOrbs.filter(o=>o.life>0);
@@ -758,7 +862,16 @@ function update(dt) {
 
   if (enemies.length === 0) {
     waveTimer++;
-    if (waveTimer > 90) { wave++; waveTimer = 0; spawnWave(); }
+    if (waveTimer > 90) {
+      wave++; waveTimer = 0;
+      // Reset armor each new wave
+      if (player.armor) player.armorActive = true;
+      // Regen: +1 HP every 5 waves
+      if (player.regen && wave % 5 === 0 && player.hp < player.maxHp) {
+        player.hp++; showWarning('♥ REGEN +1 HP');
+      }
+      spawnWave();
+    }
   }
 
   if (warningTimer > 0) warningTimer--;
@@ -768,6 +881,14 @@ function update(dt) {
 }
 
 function playerHit() {
+  if (player.armor && player.armorActive) {
+    player.armorActive = false;
+    player.invincible = 90;
+    showWarning('ARMOR BLOCKED THE HIT!');
+    spawnParticles(player.x, player.y, '#4488ff', 10);
+    sfxPlayerHit();
+    return;
+  }
   player.hp--;
   player.invincible = 90;
   sfxPlayerHit();
@@ -775,6 +896,11 @@ function playerHit() {
   if (player.hp <= 0) {
     player.dead = true;
     bankedXP = player.xp;
+    if (player.salvage && player.weaponCostMult > 1) {
+      const spent = (player.weaponCostMult - 1) * BASE_GUN_COST;
+      const recovered = Math.floor(spent * 0.25);
+      if (recovered > 0) { bankedXP += recovered; showWarning('SALVAGE: +'+recovered+' XP RECOVERED'); }
+    }
     if (score > (highScore || 0)) { highScore = score; saveProgress(); }
     if (wave > (highestWave || 0)) { highestWave = wave; saveProgress(); }
     if (score > 0) submitScoreToBoard(score, wave);
@@ -792,7 +918,8 @@ function killEnemy(e) {
 }
 
 function gainXP(amount) {
-  const reduced = amount * 0.30;
+  const rate = player.xpBoost ? 0.45 : 0.30;
+  const reduced = amount * rate;
   player.xp += reduced; totalXP += reduced;
 }
 
@@ -939,15 +1066,16 @@ function showUpgradeScreen() {
   }
   const pc = document.getElementById('upgrade-preview');
   const pctx = pc.getContext('2d');
-  pctx.clearRect(0,0,90,90);
+  pctx.clearRect(0,0,100,100);
   const pcolor = SHAPE_COLORS[player.shape];
-  drawPolygon(pctx, 45, 45, player.sides, 28, Math.PI/2 - Math.PI/player.sides, pcolor+'cc', '#fff', 2);
-  for (let i=0;i<player.sides;i++) { if (player.weapons[i]) drawWeaponOnPlayer(pctx, 45, 45, 0, i, player.sides, 28, player.weapons[i], i===0); }
+  drawPolygon(pctx, 50, 50, player.sides, 32, Math.PI/2 - Math.PI/player.sides, pcolor+'cc', '#fff', 2);
+  for (let i=0;i<player.sides;i++) { if (player.weapons[i]) drawWeaponOnPlayer(pctx, 50, 50, 0, i, player.sides, 32, player.weapons[i], i===0); }
   const rb = document.getElementById('respawn-btn');
   if (rb) { rb.disabled = false; rb.textContent = '▶ RESPAWN'; }
+  // Always start on the category grid view
+  closeUpgradeCategory();
   // Check for adblock before showing rewarded ad buttons
   checkAdblockThenShowAdBtns();
-  buildUpgradeOptions();
 }
 
 async function checkAdblockThenShowAdBtns() {
@@ -987,7 +1115,94 @@ async function checkAdblockThenShowAdBtns() {
   }
 }
 
-function buildUpgradeOptions() {
+// ─── UPGRADE CATEGORY NAVIGATION ────────────────────────────────────────────
+let currentUpgradeCategory = null;
+
+function openUpgradeCategory(cat) {
+  currentUpgradeCategory = cat;
+  document.getElementById('upgrade-category-grid').style.display = 'none';
+  document.getElementById('upgrade-panel').style.display = 'block';
+  const titles = {
+    shape:   '◈ SHAPE & WEAPONS',
+    stats:   '⚡ PLAYER STATS',
+    weapon:  '🔫 WEAPON MODS',
+    passive: '✦ PASSIVES',
+    reset:   '↺ RESET UPGRADES',
+  };
+  const colors = { shape:'#ff8888', stats:'#88aaff', weapon:'#44ff88', passive:'#cc88ff', reset:'#aaaaaa' };
+  const titleEl = document.getElementById('upgrade-panel-title');
+  titleEl.textContent = titles[cat];
+  titleEl.style.color = colors[cat];
+  buildUpgradeOptions(cat);
+}
+
+function closeUpgradeCategory() {
+  currentUpgradeCategory = null;
+  document.getElementById('upgrade-category-grid').style.display = 'grid';
+  document.getElementById('upgrade-panel').style.display = 'none';
+  document.getElementById('upgrade-options').innerHTML = '';
+}
+
+function confirmResetUpgrades() {
+  // Only show if there are purchased upgrades to refund
+  if (!player.upgrades || Object.keys(player.upgrades).length === 0) {
+    showWarning('NO UPGRADES TO RESET!');
+    return;
+  }
+  // Calculate total refund
+  const refund = calcUpgradeRefund();
+  if (refund === 0) { showWarning('NO UPGRADES TO RESET!'); return; }
+  // Show confirmation in the panel
+  openUpgradeCategory('reset');
+}
+
+function calcUpgradeRefund() {
+  if (!player.upgrades) return 0;
+  const u = player.upgrades;
+  const statCosts = { maxHp:600, speed:550, magnet:575, overclock:650, xpBoost:700, armor:800 };
+  const weaponCosts = { ricochet:525, piercing:750, spread:850, bigbullet:600 };
+  const passiveCosts = { thorns:625, regen:900, bShield:700, salvage:550 };
+  let total = 0;
+  for (const [key, val] of Object.entries(u)) {
+    if (statCosts[key])   total += statCosts[key] * (typeof val === 'number' ? val : 1);
+    if (weaponCosts[key]) total += weaponCosts[key];
+    if (passiveCosts[key])total += passiveCosts[key];
+  }
+  return total;
+}
+
+function resetAllUpgrades() {
+  const refund = calcUpgradeRefund();
+  // Clear all upgrade flags
+  player.upgrades = {};
+  player.baseSpeed = PLAYER_SPEED;
+  player.speed = PLAYER_SPEED;
+  player.magnetRange = 80;
+  player.overclockStacks = 0;
+  player.xpBoost = false;
+  player.armor = false;
+  player.armorActive = false;
+  player.bulletBounces = 2;
+  player.piercingShot = false;
+  player.spreadShot = false;
+  player.bigBullets = false;
+  player.thorns = false;
+  player.regen = false;
+  player.bulletShield = false;
+  player.salvage = false;
+  // Refund HP upgrades — reduce maxHp back to base (but keep current hp safe)
+  player.maxHp = 3;
+  player.hp = Math.min(player.hp, player.maxHp);
+  // Refund XP
+  bankedXP += refund;
+  player.xp += refund;
+  document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
+  showWarning('RESET! +' + refund + ' XP REFUNDED');
+  closeUpgradeCategory();
+}
+
+function buildUpgradeOptions(cat) {
+  cat = cat || currentUpgradeCategory;
   const container = document.getElementById('upgrade-options');
   container.innerHTML = '';
   const xp = bankedXP;
@@ -998,36 +1213,145 @@ function buildUpgradeOptions() {
   const isHeptagon = player.shape === 'heptagon';
   const waveReached = highestWave || wave;
 
-  if (shapeIdx < SHAPES.length - 1) {
-    const cost = SHAPE_EVOLVE_COSTS[shapeIdx]; const nextShape = SHAPES[shapeIdx + 1]; const canAfford = xp >= cost;
-    container.appendChild(makeUpgradeBtn('EVOLVE TO '+nextShape.toUpperCase()+'  (+'+(SHAPE_SIDES[nextShape]-player.sides)+' SLOTS)', cost, canAfford,
-      ()=>{ bankedXP -= cost; player.shape = nextShape; player.sides = SHAPE_SIDES[nextShape]; while(player.weapons.length < player.sides) player.weapons.push(null); buildUpgradeOptions(); refreshUpgradePreview(); }));
-  }
-
-  if (isHexagon && waveReached >= 10) {
-    const cost = SHAPE_EVOLVE_COSTS[4]; const canAfford = xp >= cost;
-    const btn = makeUpgradeBtn('★ SECRET: EVOLVE TO HEPTAGON  (+1 SLOT)', cost, canAfford,
-      ()=>{ bankedXP -= cost; player.shape = 'heptagon'; player.sides = 7; while(player.weapons.length < 7) player.weapons.push(null); buildUpgradeOptions(); refreshUpgradePreview(); });
-    btn.style.borderColor = '#ff4af'; btn.style.color = '#ff4af'; container.appendChild(btn);
-  }
-
-  if (isHeptagon && waveReached >= 20) {
-    const cost = SHAPE_EVOLVE_COSTS[4]; const canAfford = xp >= cost;
-    const btn = makeUpgradeBtn('★ SECRET: EVOLVE TO OCTAGON  (+1 SLOT)', cost, canAfford,
-      ()=>{ bankedXP -= cost; player.shape = 'octagon'; player.sides = 8; while(player.weapons.length < 8) player.weapons.push(null); buildUpgradeOptions(); refreshUpgradePreview(); });
-    btn.style.borderColor = '#ffd700'; btn.style.color = '#ffd700'; container.appendChild(btn);
-  }
-
-  for (let i=0; i<player.sides; i++) {
-    if (!player.weapons[i]) {
-      const sideName = getSideName(i, player.sides);
-      const gunCost = Math.round(BASE_GUN_COST * mult); const spikeCost = Math.round(BASE_SPIKE_COST * mult);
-      container.appendChild(makeUpgradeBtn('ADD BLASTER — '+sideName, gunCost, xp >= gunCost,
-        ()=>{ bankedXP -= gunCost; player.weapons[i]='gun'; player.weaponCostMult=(player.weaponCostMult||1)*2; buildUpgradeOptions(); refreshUpgradePreview(); }));
-      container.appendChild(makeUpgradeBtn('ADD SPIKE — '+sideName, spikeCost, xp >= spikeCost,
-        ()=>{ bankedXP -= spikeCost; player.weapons[i]='spike'; player.weaponCostMult=(player.weaponCostMult||1)*2; buildUpgradeOptions(); refreshUpgradePreview(); }));
+  if (cat === 'shape') {
+    // ── Shape evolution ──────────────────────────────────────────────────────
+    if (shapeIdx < SHAPES.length - 1) {
+      const cost = SHAPE_EVOLVE_COSTS[shapeIdx]; const nextShape = SHAPES[shapeIdx + 1]; const canAfford = xp >= cost;
+      container.appendChild(makeUpgradeBtn('EVOLVE TO '+nextShape.toUpperCase(), cost, canAfford,
+        ()=>{ bankedXP -= cost; player.shape = nextShape; player.sides = SHAPE_SIDES[nextShape]; while(player.weapons.length < player.sides) player.weapons.push(null); buildUpgradeOptions(); refreshUpgradePreview(); },
+        'GAIN '+(SHAPE_SIDES[nextShape]-player.sides)+' NEW WEAPON SLOT'+(SHAPE_SIDES[nextShape]-player.sides>1?'S':'') ));
+    }
+    if (isHexagon && waveReached >= 10) {
+      const cost = SHAPE_EVOLVE_COSTS[4]; const canAfford = xp >= cost;
+      const btn = makeUpgradeBtn('★ SECRET: HEPTAGON', cost, canAfford,
+        ()=>{ bankedXP -= cost; player.shape = 'heptagon'; player.sides = 7; while(player.weapons.length < 7) player.weapons.push(null); buildUpgradeOptions(); refreshUpgradePreview(); },
+        'UNLOCK SECRET 7-SIDED SHAPE');
+      btn.style.borderColor = '#ff4af'; btn.style.color = '#ff4af'; container.appendChild(btn);
+    }
+    if (isHeptagon && waveReached >= 20) {
+      const cost = SHAPE_EVOLVE_COSTS[4]; const canAfford = xp >= cost;
+      const btn = makeUpgradeBtn('★ SECRET: OCTAGON', cost, canAfford,
+        ()=>{ bankedXP -= cost; player.shape = 'octagon'; player.sides = 8; while(player.weapons.length < 8) player.weapons.push(null); buildUpgradeOptions(); refreshUpgradePreview(); },
+        'UNLOCK SECRET 8-SIDED SHAPE');
+      btn.style.borderColor = '#ffd700'; btn.style.color = '#ffd700'; container.appendChild(btn);
+    }
+    // ── Add guns/spikes to empty sides ───────────────────────────────────────
+    for (let i=0; i<player.sides; i++) {
+      if (!player.weapons[i]) {
+        const sideName = getSideName(i, player.sides);
+        const gunCost = Math.round(BASE_GUN_COST * mult); const spikeCost = Math.round(BASE_SPIKE_COST * mult);
+        container.appendChild(makeUpgradeBtn('ADD BLASTER — '+sideName, gunCost, xp >= gunCost,
+          ()=>{ bankedXP -= gunCost; player.weapons[i]='gun'; player.weaponCostMult=(player.weaponCostMult||1)*2; buildUpgradeOptions(); refreshUpgradePreview(); },
+          'AUTO-FIRING GUN ON '+sideName+' SIDE'));
+        container.appendChild(makeUpgradeBtn('ADD SPIKE — '+sideName, spikeCost, xp >= spikeCost,
+          ()=>{ bankedXP -= spikeCost; player.weapons[i]='spike'; player.weaponCostMult=(player.weaponCostMult||1)*2; buildUpgradeOptions(); refreshUpgradePreview(); },
+          'CONTACT KILL ON '+sideName+' SIDE'));
+      }
+    }
+    if (container.children.length === 0) {
+      container.innerHTML = '<div style="color:#555;font-size:0.35rem;text-align:center;padding:1rem;">ALL SHAPE UPGRADES PURCHASED</div>';
     }
   }
+
+  else if (cat === 'stats') {
+    // ── Player stat upgrades ─────────────────────────────────────────────────
+    if (!player.upgrades) player.upgrades = {};
+    const statUpgrades = [
+      { key:'maxHp',    label:'MAX HP UP',        sub:'+1 MAXIMUM HEALTH',        cost:600,  apply: ()=>{ player.maxHp++; player.hp++; } },
+      { key:'speed',    label:'SPEED UP',          sub:'+10% MOVE SPEED (PERM)',   cost:550,  apply: ()=>{ player.baseSpeed = (player.baseSpeed||PLAYER_SPEED)*1.1; player.speed = player.baseSpeed; } },
+      { key:'magnet',   label:'XP MAGNET',         sub:'2x ORB ATTRACT RANGE',     cost:575,  apply: ()=>{ player.magnetRange = (player.magnetRange||80)*2; } },
+      { key:'overclock',label:'OVERCLOCK',         sub:'-15% SHOOT COOLDOWN',      cost:650,  apply: ()=>{ player.overclockStacks = (player.overclockStacks||0)+1; } },
+      { key:'xpBoost',  label:'XP BOOST',          sub:'GAIN 45% INSTEAD OF 30%',  cost:700,  apply: ()=>{ player.xpBoost = true; } },
+      { key:'armor',    label:'ARMOR',             sub:'BLOCK FIRST HIT EACH WAVE',cost:800,  apply: ()=>{ player.armor = true; player.armorActive = true; } },
+    ];
+    for (const u of statUpgrades) {
+      const bought = player.upgrades[u.key] || 0;
+      const maxBuys = (u.key === 'maxHp' || u.key === 'speed') ? 3 : 1;
+      if (bought >= maxBuys) continue;
+      const canAfford = xp >= u.cost;
+      const label = u.label + (maxBuys>1 ? ' ('+(bought+1)+'/'+maxBuys+')' : '');
+      const btn = makeUpgradeBtn(label, u.cost, canAfford, ()=>{
+        bankedXP -= u.cost;
+        player.upgrades[u.key] = (player.upgrades[u.key]||0)+1;
+        u.apply();
+        buildUpgradeOptions();
+        refreshUpgradePreview();
+      }, u.sub);
+      btn.style.borderColor = '#4488ff';
+      container.appendChild(btn);
+    }
+    if (container.children.length === 0) {
+      container.innerHTML = '<div style="color:#555;font-size:0.35rem;text-align:center;padding:1rem;">ALL STAT UPGRADES PURCHASED</div>';
+    }
+  }
+
+  else if (cat === 'weapon') {
+    // ── Weapon mod upgrades ──────────────────────────────────────────────────
+    if (!player.upgrades) player.upgrades = {};
+    const weaponUpgrades = [
+      { key:'ricochet', label:'RICOCHET+',      sub:'BULLETS BOUNCE 5x',         cost:525, apply: ()=>{ player.bulletBounces = 5; } },
+      { key:'piercing', label:'PIERCING SHOT',  sub:'BULLETS PASS THROUGH',      cost:750, apply: ()=>{ player.piercingShot = true; } },
+      { key:'spread',   label:'SPREAD SHOT',    sub:'3-WAY FIRE CONE',           cost:850, apply: ()=>{ player.spreadShot = true; } },
+      { key:'bigbullet',label:'BIGGER BULLETS', sub:'+50% BULLET SIZE & DAMAGE', cost:600, apply: ()=>{ player.bigBullets = true; } },
+    ];
+    for (const u of weaponUpgrades) {
+      if (player.upgrades[u.key]) continue;
+      const canAfford = xp >= u.cost;
+      const btn = makeUpgradeBtn(u.label, u.cost, canAfford, ()=>{
+        bankedXP -= u.cost;
+        player.upgrades[u.key] = true;
+        u.apply();
+        buildUpgradeOptions();
+      }, u.sub);
+      btn.style.borderColor = '#22cc44';
+      container.appendChild(btn);
+    }
+    if (container.children.length === 0) {
+      container.innerHTML = '<div style="color:#555;font-size:0.35rem;text-align:center;padding:1rem;">ALL WEAPON MODS PURCHASED</div>';
+    }
+  }
+
+  else if (cat === 'passive') {
+    // ── Passive upgrades ─────────────────────────────────────────────────────
+    if (!player.upgrades) player.upgrades = {};
+    const passiveUpgrades = [
+      { key:'thorns',   label:'THORNS',        sub:'REFLECT CONTACT DAMAGE',       cost:625, apply: ()=>{ player.thorns = true; } },
+      { key:'regen',    label:'REGENERATION',  sub:'+1 HP EVERY 5 WAVES SURVIVED', cost:900, apply: ()=>{ player.regen = true; } },
+      { key:'bShield',  label:'BULLET SHIELD', sub:'20% BULLET DEFLECT CHANCE',    cost:700, apply: ()=>{ player.bulletShield = true; } },
+      { key:'salvage',  label:'SALVAGE',       sub:'RECOVER 25% SPENT XP ON DEATH',cost:550, apply: ()=>{ player.salvage = true; } },
+    ];
+    for (const u of passiveUpgrades) {
+      if (player.upgrades[u.key]) continue;
+      const canAfford = xp >= u.cost;
+      const btn = makeUpgradeBtn(u.label, u.cost, canAfford, ()=>{
+        bankedXP -= u.cost;
+        player.upgrades[u.key] = true;
+        u.apply();
+        buildUpgradeOptions();
+      }, u.sub);
+      btn.style.borderColor = '#aa44ff';
+      container.appendChild(btn);
+    }
+    if (container.children.length === 0) {
+      container.innerHTML = '<div style="color:#555;font-size:0.35rem;text-align:center;padding:1rem;">ALL PASSIVES PURCHASED</div>';
+    }
+  }
+
+  else if (cat === 'reset') {
+    const refund = calcUpgradeRefund();
+    container.innerHTML = `
+      <div style="text-align:center;padding:0.6rem 0.4rem;">
+        <div style="font-size:0.38rem;color:#ccc;letter-spacing:0.1em;line-height:1.8em;margin-bottom:0.8rem;">
+          ALL PURCHASED UPGRADES<br>WILL BE REMOVED.<br>
+          <span style="color:#f0c040;">+${refund} XP REFUNDED</span>
+        </div>
+        <div style="display:flex;gap:0.4rem;justify-content:center;">
+          <button onclick="resetAllUpgrades()" style="background:none;border:1px solid #ff4444;color:#ff4444;font-family:'Press Start 2P','Courier New',monospace;font-size:0.38rem;padding:0.5em 1em;cursor:pointer;letter-spacing:0.1em;">CONFIRM</button>
+          <button onclick="closeUpgradeCategory()" style="background:none;border:1px solid #555;color:#888;font-family:'Press Start 2P','Courier New',monospace;font-size:0.38rem;padding:0.5em 1em;cursor:pointer;letter-spacing:0.1em;">CANCEL</button>
+        </div>
+      </div>`;
+  }
+
   document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
 }
 
@@ -1037,10 +1361,11 @@ function getSideName(i, sides) {
   return 'SIDE '+(i+1);
 }
 
-function makeUpgradeBtn(label, cost, canAfford, onClick) {
+function makeUpgradeBtn(label, cost, canAfford, onClick, sub) {
   const btn = document.createElement('button');
   btn.className = 'upgrade-btn' + (canAfford?'':' disabled');
-  btn.innerHTML = '<span>'+label+'</span><span class="cost">'+cost+' XP</span>';
+  const subHtml = sub ? '<span class="btn-sub">'+sub+'</span>' : '';
+  btn.innerHTML = '<span>'+label+subHtml+'</span><span class="cost">'+cost+'<br>XP</span>';
   if (canAfford) btn.onclick = onClick;
   return btn;
 }
@@ -1048,10 +1373,10 @@ function makeUpgradeBtn(label, cost, canAfford, onClick) {
 function refreshUpgradePreview() {
   document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
   const pc = document.getElementById('upgrade-preview'); const pctx = pc.getContext('2d');
-  pctx.clearRect(0,0,90,90);
+  pctx.clearRect(0,0,100,100);
   const pcolor = SHAPE_COLORS[player.shape];
-  drawPolygon(pctx,45,45,player.sides,28,Math.PI/2-Math.PI/player.sides,pcolor+'cc','#fff',2);
-  for(let i=0;i<player.sides;i++){ if(player.weapons[i]) drawWeaponOnPlayer(pctx,45,45,0,i,player.sides,28,player.weapons[i],i===0); }
+  drawPolygon(pctx,50,50,player.sides,32,Math.PI/2-Math.PI/player.sides,pcolor+'cc','#fff',2);
+  for(let i=0;i<player.sides;i++){ if(player.weapons[i]) drawWeaponOnPlayer(pctx,50,50,0,i,player.sides,32,player.weapons[i],i===0); }
 }
 
 // ─── CrazyGames SDK INIT & USER ──────────────────────────────────────────────
@@ -1339,12 +1664,29 @@ function unmuteGameAudio() { resumeAfterAd(); }
 function reviveAndContinue() {
   document.getElementById('upgrade-screen').style.display = 'none';
   const savedShape = player.shape, savedSides = player.sides, savedWeapons = player.weapons.slice(), savedWeaponCostMult = player.weaponCostMult || 1;
+  const savedUpgrades = Object.assign({}, player.upgrades || {});
   const savedWave = wave, savedScore = score;
   if (player.powerUpTimer) clearTimeout(player.powerUpTimer);
   bullets = []; particles = []; powerUps = []; powerUpSpawnCount = 0;
   player = createPlayer();
   player.shape = savedShape; player.sides = savedSides; player.weapons = savedWeapons;
   player.weaponCostMult = savedWeaponCostMult; player.xp = bankedXP;
+  player.upgrades = savedUpgrades;
+  // Re-apply purchased upgrades
+  if (savedUpgrades.maxHp) { for(let n=0;n<savedUpgrades.maxHp;n++) { player.maxHp++; } }
+  if (savedUpgrades.speed) { for(let n=0;n<savedUpgrades.speed;n++) { player.baseSpeed*=1.1; } player.speed=player.baseSpeed; }
+  if (savedUpgrades.magnet) { player.magnetRange = 80 * Math.pow(2, savedUpgrades.magnet||0); }
+  if (savedUpgrades.overclock) { player.overclockStacks = savedUpgrades.overclock; }
+  if (savedUpgrades.xpBoost) player.xpBoost = true;
+  if (savedUpgrades.armor) { player.armor = true; player.armorActive = true; }
+  if (savedUpgrades.ricochet) player.bulletBounces = 5;
+  if (savedUpgrades.piercing) player.piercingShot = true;
+  if (savedUpgrades.spread) player.spreadShot = true;
+  if (savedUpgrades.bigbullet) player.bigBullets = true;
+  if (savedUpgrades.thorns) player.thorns = true;
+  if (savedUpgrades.regen) player.regen = true;
+  if (savedUpgrades.bShield) player.bulletShield = true;
+  if (savedUpgrades.salvage) player.salvage = true;
   player.hp = Math.max(1, Math.floor(player.maxHp / 3));
   player.invincible = 180;
   wave = savedWave; score = savedScore;
@@ -1357,12 +1699,28 @@ function reviveAndContinue() {
 function continueGame() {
   document.getElementById('upgrade-screen').style.display = 'none';
   const savedShape = player.shape, savedSides = player.sides, savedWeapons = player.weapons.slice(), savedWeaponCostMult = player.weaponCostMult || 1;
+  const savedUpgrades2 = Object.assign({}, player.upgrades || {});
   if (player.powerUpTimer) clearTimeout(player.powerUpTimer);
   enemies = []; bullets = []; xpOrbs = []; particles = []; powerUps = []; powerUpSpawnCount = 0;
   wave = 1; score = 0; waveTimer = 0; shootTimer = 0;
   player = createPlayer();
   player.shape = savedShape; player.sides = savedSides; player.weapons = savedWeapons;
   player.weaponCostMult = savedWeaponCostMult; player.xp = bankedXP;
+  player.upgrades = savedUpgrades2;
+  if (savedUpgrades2.maxHp) { for(let n=0;n<savedUpgrades2.maxHp;n++) { player.maxHp++; } }
+  if (savedUpgrades2.speed) { for(let n=0;n<savedUpgrades2.speed;n++) { player.baseSpeed*=1.1; } player.speed=player.baseSpeed; }
+  if (savedUpgrades2.magnet) { player.magnetRange = 80 * Math.pow(2, savedUpgrades2.magnet||0); }
+  if (savedUpgrades2.overclock) { player.overclockStacks = savedUpgrades2.overclock; }
+  if (savedUpgrades2.xpBoost) player.xpBoost = true;
+  if (savedUpgrades2.armor) { player.armor = true; player.armorActive = true; }
+  if (savedUpgrades2.ricochet) player.bulletBounces = 5;
+  if (savedUpgrades2.piercing) player.piercingShot = true;
+  if (savedUpgrades2.spread) player.spreadShot = true;
+  if (savedUpgrades2.bigbullet) player.bigBullets = true;
+  if (savedUpgrades2.thorns) player.thorns = true;
+  if (savedUpgrades2.regen) player.regen = true;
+  if (savedUpgrades2.bShield) player.bulletShield = true;
+  if (savedUpgrades2.salvage) player.salvage = true;
   player.hp = player.maxHp; player.invincible = 120;
   spawnWave();
   state = 'playing';
