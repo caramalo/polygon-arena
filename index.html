@@ -372,6 +372,11 @@ let shootTimer = 0;
 let waveTimer = 0;
 let warningTimer = 0;
 let nukeFlash = 0; // frames of white screen flash after nuke
+let rampageTimer = 0;  // frames remaining in rampage mode
+let rampageFlash = 0;  // border flash counter
+let hazardZones = [];       // danger zones that appear after wave 15
+let playerStillTimer = 0;   // frames player has been stationary
+let playerLastX = 0, playerLastY = 0; // for detecting inactivity
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -445,37 +450,45 @@ function spawnEnemy(type) {
   const sides = SHAPE_SIDES[shape];
   const color = ENEMY_COLORS[Math.floor(Math.random()*ENEMY_COLORS.length)];
 
+  // Base stats
+  let hp = sides * (1 + wave*0.3);
+  let spd = 0.4 + Math.random()*0.3 + wave*0.06;
+  let radius = 18 + sides*1.5;
+  let shieldHp = 0;
+  let chargeAngle = null, chargeTimer = 0, chargeCooldown = 0;
+  let isSplitChild = false;
+
+  if (type === 'tank') {
+    shieldHp = 4 + Math.floor(wave / 3); // absorbs this many bullets before HP damage
+    hp *= 1.5;
+    spd *= 0.6;
+    radius *= 1.2;
+  } else if (type === 'charger') {
+    spd *= 0.4; // slow normally, then charges
+    chargeCooldown = 120 + Math.random()*60; // frames before first charge
+  } else if (type === 'splitter') {
+    hp *= 0.7;
+    radius *= 0.9;
+  }
+
   return {
     x, y, shape, sides, color,
-    r: 18 + sides*1.5,
+    r: radius,
     angle: Math.random()*Math.PI*2,
-    hp: sides * (1 + wave*0.3),
-    maxHp: sides * (1 + wave*0.3),
+    hp, maxHp: hp,
     xpValue: sides * 10 + wave*5,
-    speed: 0.4 + Math.random()*0.3 + wave*0.06,
+    speed: spd,
     type,
     shootTimer: 60 + Math.random()*80,
     invincible: 0,
     dead: false,
-    activePowerUp: null,
-    powerUpTimer: null,
-    rapidFire: false,
-    shield: false,
-    upgrades: {},
-    baseSpeed: PLAYER_SPEED,
-    magnetRange: 80,
-    overclockStacks: 0,
-    bulletBounces: 2,
-    piercingShot: false,
-    spreadShot: false,
-    bigBullets: false,
-    xpBoost: false,
-    armor: false,
-    armorActive: false,
-    thorns: false,
-    regen: false,
-    bulletShield: false,
-    salvage: false,
+    shieldHp,        // tank: absorbs bullets
+    maxShieldHp: shieldHp,
+    chargeAngle,     // charger: locked direction during charge
+    chargeTimer,     // charger: frames remaining in current charge
+    chargeCooldown,  // charger: countdown to next charge
+    isElite: false,
+    isSplitChild,
   };
 }
 
@@ -578,6 +591,11 @@ function initGame() {
   shootTimer = 0;
   powerUpSpawnCount = 0;
   if (highScore === undefined) highScore = 0;
+  hazardZones = [];
+  playerStillTimer = 0;
+  playerLastX = W/2; playerLastY = H/2;
+  rampageTimer = 0;
+  rampageFlash = 0;
   spawnWave();
 }
 
@@ -593,14 +611,51 @@ function spawnWave() {
       }
     }, delay);
   }
+
+  // Spawn hazard zones after wave 15
+  if (wave > 15) spawnHazardZones();
+
   const count = 2 + Math.floor(wave*1.5);
+  let eliteSlot = wave > 15 ? Math.floor(Math.random() * count) : -1;
+
   for (let i=0;i<count;i++) {
     let type = 'basic';
     const r = Math.random();
-    if (wave >= 3 && r < 0.15) type = 'vampire';
-    else if (wave >= 3 && r < 0.30) type = 'thief';
-    else if (wave >= 4 && r < 0.50) type = 'shooter';
-    setTimeout(()=>enemies.push(spawnEnemy(type)), i*500);
+    if (wave >= 3 && r < 0.12) type = 'vampire';
+    else if (wave >= 3 && r < 0.22) type = 'thief';
+    else if (wave >= 4 && r < 0.38) type = 'shooter';
+    else if (wave >= 5 && r < 0.50) type = 'tank';
+    else if (wave >= 6 && r < 0.62) type = 'charger';
+    else if (wave >= 7 && r < 0.72) type = 'splitter';
+    const isElite = (i === eliteSlot);
+    setTimeout(()=>{ const e = spawnEnemy(type); if (isElite) makeElite(e); enemies.push(e); }, i*500);
+  }
+}
+
+function makeElite(e) {
+  e.isElite = true;
+  e.hp *= 5;
+  e.maxHp *= 5;
+  e.shieldHp = 0; // elites ignore bullet shields — raw HP
+  e.color = '#ff2200';
+  e.eliteColor = '#ff2200';
+  e.speed *= 1.3;
+  e.r *= 1.4;
+}
+
+function spawnHazardZones() {
+  hazardZones = [];
+  const count = 2 + Math.floor((wave - 15) / 3); // more zones as waves progress, cap at 6
+  const zoneCount = Math.min(count, 6);
+  const margin = 60;
+  for (let i = 0; i < zoneCount; i++) {
+    hazardZones.push({
+      x: ARENA.x + margin + Math.random() * (ARENA.w - margin*2),
+      y: ARENA.y + margin + Math.random() * (ARENA.h - margin*2),
+      r: 35 + Math.random() * 20,
+      pulse: Math.random() * Math.PI * 2,
+      damageTimer: 0,
+    });
   }
 }
 
@@ -720,15 +775,29 @@ function update(dt) {
     const len = Math.sqrt(joystick.dx**2+joystick.dy**2);
     const nx = joystick.dx/len; const ny = joystick.dy/len;
     player.angle = Math.atan2(ny, nx);
-    player.x = Math.max(ARENA.x+player.r, Math.min(ARENA.x+ARENA.w-player.r, player.x + nx*player.speed));
-    player.y = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, player.y + ny*player.speed));
+    // Option E — Wall slide: if blocked on one axis, preserve velocity on the other
+    const spd = rampageTimer > 0 ? player.speed * 2 : player.speed;
+    const newX = player.x + nx * spd;
+    const newY = player.y + ny * spd;
+    const clampedX = Math.max(ARENA.x+player.r, Math.min(ARENA.x+ARENA.w-player.r, newX));
+    const clampedY = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, newY));
+    // If hitting left/right wall, allow full vertical slide and vice versa
+    player.x = clampedX;
+    player.y = clampedY;
+    // Wall slide: if x was clamped (hitting wall), boost y movement to slide along it
+    if (clampedX !== newX && ny !== 0) player.y = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, player.y + ny * spd * 0.85));
+    if (clampedY !== newY && nx !== 0) player.x = Math.max(ARENA.x+player.r, Math.min(ARENA.x+ARENA.w-player.r, player.x + nx * spd * 0.85));
   }
 
   if (player.invincible > 0) player.invincible--;
 
   shootTimer++;
   const baseThresh = 28 - (player.overclockStacks||0)*4;
-  const shootThreshold = player.rapidFire ? Math.max(8, baseThresh-10) : Math.max(10, baseThresh);
+  // Rampage: triple fire rate (threshold ÷ 3); also combines with rapidFire/overclock
+  const rampageMult = rampageTimer > 0 ? 3 : 1;
+  const shootThreshold = player.rapidFire
+    ? Math.max(4, Math.floor((baseThresh-10) / rampageMult))
+    : Math.max(4, Math.floor(baseThresh / rampageMult));
   if (shootTimer > shootThreshold) {
     shootTimer = 0;
     for (let i=0;i<player.sides;i++) {
@@ -761,6 +830,30 @@ function update(dt) {
   }
   bullets = bullets.filter(b=>b.life>0);
 
+  // ── Inactivity detection ────────────────────────────────────────────────────
+  const moved = Math.abs(player.x - playerLastX) > 1 || Math.abs(player.y - playerLastY) > 1;
+  if (moved) { playerStillTimer = 0; playerLastX = player.x; playerLastY = player.y; }
+  else playerStillTimer++;
+
+  // ── Hazard zone damage (after wave 15, standing still on a zone) ───────────
+  if (wave > 15 && playerStillTimer > 90) {
+    for (let hz of hazardZones) {
+      hz.damageTimer++;
+      hz.pulse += 0.05;
+      const hd = dist(player, hz);
+      if (hd < hz.r + player.r) {
+        if (hz.damageTimer > 120) { // 2 seconds on zone = damage
+          hz.damageTimer = 0;
+          playerHit();
+          showWarning('DANGER ZONE! MOVE!');
+          spawnParticles(player.x, player.y, '#ff4400', 10);
+        }
+      } else {
+        hz.damageTimer = Math.max(0, hz.damageTimer - 2); // drain timer when off zone
+      }
+    }
+  }
+
   for (let e of enemies) {
     if (e.dead) continue;
     if (e.invincible > 0) e.invincible--;
@@ -768,7 +861,42 @@ function update(dt) {
     const d = Math.sqrt(dx*dx+dy*dy);
     const nx = dx/d, ny = dy/d;
 
-    if (e.type === 'thief') {
+    // ── ELITE: beeline ignoring standard pathing ───────────────────────────
+    if (e.isElite) {
+      e.x += nx * e.speed; e.y += ny * e.speed; e.angle += 0.04;
+    }
+    // ── TANK: slow march toward player ────────────────────────────────────
+    else if (e.type === 'tank') {
+      e.x += nx*e.speed; e.y += ny*e.speed; e.angle += 0.01;
+    }
+    // ── CHARGER: idle + explosive charge ──────────────────────────────────
+    else if (e.type === 'charger') {
+      if (e.chargeTimer > 0) {
+        // Mid-charge: move fast in locked direction
+        e.x += Math.cos(e.chargeAngle)*e.speed*6;
+        e.y += Math.sin(e.chargeAngle)*e.speed*6;
+        e.chargeTimer--;
+        if (e.chargeTimer === 0) e.chargeCooldown = 90 + Math.random()*60;
+      } else {
+        e.chargeCooldown--;
+        // Circle/drift slowly while cooling down
+        e.x += nx*e.speed*0.3; e.y += ny*e.speed*0.3;
+        e.angle += 0.03;
+        if (e.chargeCooldown <= 0) {
+          // Lock charge direction toward player + slight random offset
+          e.chargeAngle = Math.atan2(dy, dx) + (Math.random()-0.5)*0.3;
+          e.chargeTimer = 18 + Math.floor(wave/3); // frames of charge
+          // Brief charge warn SFX
+          try { playTone(180, 'sawtooth', 0.12, 0.15); } catch(ex) {}
+        }
+      }
+    }
+    // ── SPLITTER: normal movement ──────────────────────────────────────────
+    else if (e.type === 'splitter') {
+      e.x += nx*e.speed*1.1; e.y += ny*e.speed*1.1; e.angle += 0.03;
+    }
+    // ── THIEF: orb-chase ──────────────────────────────────────────────────
+    else if (e.type === 'thief') {
       let nearest = null, nearestD = Infinity;
       for (let o of xpOrbs) { const od = dist(e, o); if (od < nearestD) { nearestD = od; nearest = o; } }
       if (nearest && nearestD < 200) {
@@ -776,7 +904,9 @@ function update(dt) {
         e.x += (ox/ol)*e.speed*1.2; e.y += (oy/ol)*e.speed*1.2; e.angle = Math.atan2(oy, ox);
         if (nearestD < e.r+nearest.r) { nearest.life = 0; spawnParticles(nearest.x, nearest.y, '#f0c040', 5); showWarning('XP STOLEN!'); }
       } else { e.x += nx*e.speed*0.5; e.y += ny*e.speed*0.5; }
-    } else { e.x += nx*e.speed; e.y += ny*e.speed; e.angle += 0.02; }
+    }
+    // ── DEFAULT: basic/vampire/shooter ────────────────────────────────────
+    else { e.x += nx*e.speed; e.y += ny*e.speed; e.angle += 0.02; }
 
     e.x = Math.max(ARENA.x+e.r, Math.min(ARENA.x+ARENA.w-e.r, e.x));
     e.y = Math.max(ARENA.y+e.r, Math.min(ARENA.y+ARENA.h-e.r, e.y));
@@ -797,6 +927,13 @@ function update(dt) {
     }
 
     if (d < e.r+player.r && e.type !== 'vampire' && e.type !== 'thief') {
+      // Option D — Knockback: push enemy away from player on contact
+      const kbStr = e.isElite ? 1.5 : e.type === 'tank' ? 0.8 : 3.0;
+      e.x -= nx * kbStr * (e.r / 10);
+      e.y -= ny * kbStr * (e.r / 10);
+      e.x = Math.max(ARENA.x+e.r, Math.min(ARENA.x+ARENA.w-e.r, e.x));
+      e.y = Math.max(ARENA.y+e.r, Math.min(ARENA.y+ARENA.h-e.r, e.y));
+
       if (player.invincible <= 0) {
         const hitAngle = Math.atan2(dy, dx) + Math.PI;
         const weapon = weaponAtAngle(player, hitAngle);
@@ -804,7 +941,6 @@ function update(dt) {
         else if (player.shield) { player.shield = false; player.activePowerUp = null; showWarning('SHIELD BROKEN!'); spawnParticles(player.x, player.y, '#44ff88', 16); player.invincible = 60; }
         else {
           if (player.thorns) {
-            // Thorns: instantly kill the enemy on contact (player still takes the hit)
             killEnemy(e);
             spawnParticles(e.x, e.y, '#aa44ff', 16);
             spawnParticles(e.x, e.y, '#ffffff', 6);
@@ -822,9 +958,37 @@ function update(dt) {
       if (e.dead) continue;
       if (dist(b, e) < b.r+e.r) {
         if (!b.pierce) b.life = 0;
+
+        // TANK: bullets absorbed by shield first
+        if (e.type === 'tank' && e.shieldHp > 0) {
+          e.shieldHp--;
+          spawnParticles(b.x, b.y, '#4488ff', 3);
+          if (e.shieldHp === 0) showWarning('TANK SHIELD BROKEN!');
+          e.invincible = 4;
+          continue; // no HP damage while shield is up
+        }
+
         const dmg = player.bigBullets ? (1 + wave*0.2)*1.5 : (1 + wave*0.2);
         e.hp -= dmg; e.invincible = 8; spawnParticles(b.x, b.y, b.color, 4);
-        if (e.hp <= 0) { killEnemy(e); sfxBulletKill(); }
+        if (e.hp <= 0) {
+          // SPLITTER: spawn two smaller children on death
+          if (e.type === 'splitter' && !e.isSplitChild) {
+            for (let s = 0; s < 2; s++) {
+              const child = spawnEnemy('splitter');
+              child.x = e.x + (s===0?-20:20);
+              child.y = e.y + (Math.random()-0.5)*20;
+              child.r = e.r * 0.6;
+              child.hp = Math.max(1, e.maxHp * 0.3);
+              child.maxHp = child.hp;
+              child.speed = e.speed * 1.6;
+              child.isSplitChild = true;
+              child.color = '#ff88ff';
+              enemies.push(child);
+            }
+            spawnParticles(e.x, e.y, '#ff88ff', 14);
+          }
+          killEnemy(e); sfxBulletKill();
+        }
       }
     }
   }
@@ -877,6 +1041,18 @@ function update(dt) {
   if (warningTimer > 0) warningTimer--;
   else document.getElementById('hud-warning').textContent = '';
 
+  // Rampage countdown
+  if (rampageTimer > 0) {
+    rampageTimer--;
+    rampageFlash = (rampageFlash + 1) % 12;
+    // Triple fire rate during rampage is handled by overriding shootThreshold (done above in shoot block)
+    if (rampageTimer === 0) {
+      // Rampage ended
+      player.invincible = 0;
+      showWarning('RAMPAGE OVER — STAY ALIVE!');
+    }
+  }
+
   updateHUD();
 }
 
@@ -893,6 +1069,16 @@ function playerHit() {
   player.invincible = 90;
   sfxPlayerHit();
   spawnParticles(player.x, player.y, SHAPE_COLORS[player.shape], 12);
+
+  // Option C — Rampage Mode: triggers when HP drops to exactly 1
+  if (player.hp === 1 && rampageTimer === 0) {
+    rampageTimer = 300; // 5 seconds at 60fps
+    player.invincible = 300; // full invincibility during rampage
+    showWarning('☠ RAMPAGE MODE! ESCAPE NOW!');
+    spawnParticles(player.x, player.y, '#ff2200', 20);
+    spawnParticles(player.x, player.y, '#ffaa00', 12);
+    sfxRampage();
+  }
   if (player.hp <= 0) {
     player.dead = true;
     bankedXP = player.xp;
@@ -965,21 +1151,83 @@ function draw() {
     ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill(); ctx.restore();
   }
 
+  // ── Hazard zones ──────────────────────────────────────────────────────────
+  if (wave > 15) {
+    const t = Date.now()/1000;
+    for (let hz of hazardZones) {
+      const pulse = 0.6 + 0.4*Math.sin(t*3 + hz.pulse);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(hz.x, hz.y, hz.r * pulse, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,60,0,0.12)'; ctx.fill();
+      ctx.strokeStyle = `rgba(255,80,0,${0.5*pulse})`; ctx.lineWidth = 2; ctx.stroke();
+      // Warning stripes
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = '#ff4400';
+      ctx.font = '10px Courier New'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('⚠', hz.x, hz.y);
+      ctx.restore();
+    }
+  }
+
   for (let e of enemies) {
     if (e.dead) continue;
     const flash = e.invincible > 0 && Math.floor(e.invincible/4)%2===0;
     const bw = e.r*2.5;
+
+    // HP bar
     ctx.fillStyle = '#1a1a2e'; ctx.fillRect(e.x-bw/2, e.y-e.r-10, bw, 4);
-    ctx.fillStyle = e.type==='vampire'?'#a44':e.type==='thief'?'#4af':e.color;
+    const hpColor = e.isElite ? '#ff2200' : e.type==='vampire'?'#a44':e.type==='thief'?'#4af':e.color;
+    ctx.fillStyle = hpColor;
     ctx.fillRect(e.x-bw/2, e.y-e.r-10, bw*(e.hp/e.maxHp), 4);
+
+    // Tank shield bar (blue, above HP bar)
+    if (e.type === 'tank' && e.maxShieldHp > 0) {
+      ctx.fillStyle = '#1a1a2e'; ctx.fillRect(e.x-bw/2, e.y-e.r-16, bw, 3);
+      ctx.fillStyle = '#4488ff';
+      ctx.fillRect(e.x-bw/2, e.y-e.r-16, bw*(e.shieldHp/e.maxShieldHp), 3);
+    }
+
     let strokeColor = flash ? '#fff' : '#0a0a0f';
-    let extraStroke = null;
-    if (e.type==='vampire') extraStroke='#a44';
-    if (e.type==='thief') extraStroke='#4af';
-    drawPolygon(ctx, e.x, e.y, e.sides, e.r, e.angle, flash?'#fff':e.color+'cc', extraStroke || strokeColor, 2);
-    if (e.type!=='basic' && e.type!=='shooter') {
-      ctx.save(); ctx.globalAlpha = 0.7; ctx.fillStyle = '#fff'; ctx.font = '8px Courier New'; ctx.textAlign = 'center';
-      ctx.fillText(e.type.toUpperCase(), e.x, e.y+e.r+16); ctx.restore();
+    let fillColor = flash ? '#fff' : e.color+'cc';
+
+    // Special visuals per type
+    if (e.isElite) {
+      // Elite: fiery red glow
+      ctx.save(); ctx.shadowBlur = 20; ctx.shadowColor = '#ff2200';
+      drawPolygon(ctx, e.x, e.y, e.sides, e.r+4, e.angle, 'rgba(255,34,0,0.3)', null, 0);
+      ctx.restore();
+      strokeColor = '#ff2200';
+      fillColor = flash ? '#fff' : '#ff440088';
+    } else if (e.type === 'tank') {
+      // Tank: thick blue shield ring if shield active
+      if (e.shieldHp > 0) {
+        ctx.save(); ctx.beginPath(); ctx.arc(e.x, e.y, e.r+5, 0, Math.PI*2);
+        ctx.strokeStyle = '#4488ff'; ctx.lineWidth = 3; ctx.globalAlpha = 0.7; ctx.stroke(); ctx.restore();
+      }
+      strokeColor = '#4488ff';
+    } else if (e.type === 'charger') {
+      // Charger: red trail when charging
+      if (e.chargeTimer > 0) {
+        ctx.save(); ctx.globalAlpha = 0.3;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r*1.5, 0, Math.PI*2);
+        ctx.fillStyle = '#ff4400'; ctx.fill(); ctx.restore();
+        strokeColor = '#ff8800';
+      }
+    } else if (e.type === 'splitter') {
+      strokeColor = '#ff88ff';
+    }
+
+    if (e.type==='vampire') strokeColor = '#a44';
+    if (e.type==='thief') strokeColor = '#4af';
+
+    drawPolygon(ctx, e.x, e.y, e.sides, e.r, e.angle, fillColor, strokeColor, e.isElite ? 3 : 2);
+
+    // Label for special types
+    const showLabel = e.type !== 'basic' && e.type !== 'shooter' || e.isElite;
+    if (showLabel) {
+      ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = e.isElite ? '#ff4400' : '#fff';
+      ctx.font = (e.isElite ? 'bold ' : '') + '8px Courier New'; ctx.textAlign = 'center';
+      ctx.fillText(e.isElite ? '★ ELITE' : e.type.toUpperCase(), e.x, e.y+e.r+16); ctx.restore();
     }
   }
 
@@ -1020,6 +1268,31 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
     ctx.restore();
     nukeFlash--;
+  }
+
+  // Rampage mode — pulsing red border + vignette
+  if (rampageTimer > 0) {
+    const intensity = rampageFlash < 6 ? 1 : 0.4; // alternating bright/dim
+    const urgency = rampageTimer < 90 ? 1 : 0.7;  // brighter in final 1.5s
+    ctx.save();
+    // Vignette overlay
+    ctx.globalAlpha = 0.18 * intensity * urgency;
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(0, 0, W, H);
+    // Bold border
+    ctx.globalAlpha = 0.85 * intensity * urgency;
+    ctx.strokeStyle = '#ff2200';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(5, 5, W-10, H-10);
+    // Warning text top
+    if (rampageFlash < 6) {
+      ctx.globalAlpha = 0.9 * urgency;
+      ctx.fillStyle = '#ff4400';
+      ctx.font = '9px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('☠ RAMPAGE ' + Math.ceil(rampageTimer/60) + 's', W/2, 62);
+    }
+    ctx.restore();
   }
 }
 
@@ -1927,6 +2200,14 @@ function sfxBulletKill() { playTone(80,'sine',0.18,0.5); playTone(120,'sine',0.1
 function sfxSpikeKill() { playTone(400,'sine',0.05,0.5); playTone(800,'sine',0.08,0.4); playTone(1200,'triangle',0.12,0.3); }
 function sfxPlayerHit() { playNoise(0.15,0.3); playTone(200,'sawtooth',0.2,0.2); }
 function sfxXPDrain() { playTone(300,'sine',0.1,0.15); playTone(200,'sine',0.15,0.1); }
+function sfxRampage() {
+  // Dramatic rising alarm
+  playTone(200, 'sawtooth', 0.15, 0.4);
+  setTimeout(()=>playTone(300, 'sawtooth', 0.15, 0.4), 150);
+  setTimeout(()=>playTone(400, 'sawtooth', 0.15, 0.4), 300);
+  setTimeout(()=>playTone(600, 'square', 0.3, 0.5), 500);
+  setTimeout(()=>playNoise(0.3, 0.5), 550);
+}
 
 // ─── BG MUSIC ────────────────────────────────────────────────────────────────
 let musicNodes = [];
