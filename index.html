@@ -268,11 +268,7 @@
 
       <!-- Category grid view -->
       <div id="upgrade-category-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;padding-bottom:0.4rem;">
-        <div class="cat-box" onclick="openUpgradeCategory('shape')" style="border:1px solid #a44;background:rgba(160,40,40,0.18);padding:0.6rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
-          <div style="font-size:1.1rem;margin-bottom:0.2rem;">◈</div>
-          <div style="font-size:0.34rem;letter-spacing:0.1em;color:#ff8888;">SHAPE</div>
-          <div style="font-size:0.28rem;color:#aa5555;margin-top:0.1rem;">EVOLVE &amp; WEAPONS</div>
-        </div>
+
         <div class="cat-box" onclick="openUpgradeCategory('stats')" style="border:1px solid #44a;background:rgba(40,40,160,0.18);padding:0.6rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
           <div style="font-size:1.1rem;margin-bottom:0.2rem;">⚡</div>
           <div style="font-size:0.34rem;letter-spacing:0.1em;color:#88aaff;">PLAYER STATS</div>
@@ -372,6 +368,10 @@ let shootTimer = 0;
 let waveTimer = 0;
 let warningTimer = 0;
 let nukeFlash = 0; // frames of white screen flash after nuke
+let dashTimer = 0;        // frames remaining in active dash
+let dashCooldown = 0;     // frames until dash is available again (300 = 5 sec)
+let dashTrail = [];       // ghost trail particles for dash animation
+let dashVx = 0, dashVy = 0; // locked dash direction
 let rampageTimer = 0;  // frames remaining in rampage mode
 let rampageFlash = 0;  // border flash counter
 let hazardZones = [];       // danger zones that appear after wave 15
@@ -596,6 +596,9 @@ function initGame() {
   playerLastX = W/2; playerLastY = H/2;
   rampageTimer = 0;
   rampageFlash = 0;
+  dashTimer = 0;
+  dashCooldown = 0;
+  dashTrail = [];
   spawnWave();
 }
 
@@ -771,23 +774,52 @@ function drawShield() {
 function update(dt) {
   if (state !== 'playing') return;
 
-  if (joystick.active && (joystick.dx !== 0 || joystick.dy !== 0)) {
+  // ── Dash movement (overrides joystick while active) ──────────────────────
+  if (dashTimer > 0) {
+    const dashSpd = 22; // fast burst speed
+    const newX = player.x + dashVx * dashSpd;
+    const newY = player.y + dashVy * dashSpd;
+    const clampedX = Math.max(ARENA.x+player.r, Math.min(ARENA.x+ARENA.w-player.r, newX));
+    const clampedY = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, newY));
+    player.x = clampedX;
+    player.y = clampedY;
+    // Spawn trail ghost every frame of dash
+    dashTrail.push({
+      x: player.x, y: player.y,
+      vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5,
+      life: 18, maxLife: 18,
+      r: player.r * 0.85,
+      color: SHAPE_COLORS[player.shape],
+      isGhost: true,
+    });
+    dashTimer--;
+    // Full invincibility during dash
+    player.invincible = Math.max(player.invincible, dashTimer + 2);
+  } else if (joystick.active && (joystick.dx !== 0 || joystick.dy !== 0)) {
     const len = Math.sqrt(joystick.dx**2+joystick.dy**2);
     const nx = joystick.dx/len; const ny = joystick.dy/len;
     player.angle = Math.atan2(ny, nx);
-    // Option E — Wall slide: if blocked on one axis, preserve velocity on the other
+    // Option E — Wall slide
     const spd = rampageTimer > 0 ? player.speed * 2 : player.speed;
     const newX = player.x + nx * spd;
     const newY = player.y + ny * spd;
     const clampedX = Math.max(ARENA.x+player.r, Math.min(ARENA.x+ARENA.w-player.r, newX));
     const clampedY = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, newY));
-    // If hitting left/right wall, allow full vertical slide and vice versa
     player.x = clampedX;
     player.y = clampedY;
-    // Wall slide: if x was clamped (hitting wall), boost y movement to slide along it
     if (clampedX !== newX && ny !== 0) player.y = Math.max(ARENA.y+player.r, Math.min(ARENA.y+ARENA.h-player.r, player.y + ny * spd * 0.85));
     if (clampedY !== newY && nx !== 0) player.x = Math.max(ARENA.x+player.r, Math.min(ARENA.x+ARENA.w-player.r, player.x + nx * spd * 0.85));
   }
+
+  // Tick dash cooldown
+  if (dashCooldown > 0) dashCooldown--;
+
+  // Update dash trail particles
+  dashTrail = dashTrail.filter(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.life--;
+    return p.life > 0;
+  });
 
   if (player.invincible > 0) player.invincible--;
 
@@ -1041,6 +1073,11 @@ function update(dt) {
   if (warningTimer > 0) warningTimer--;
   else document.getElementById('hud-warning').textContent = '';
 
+  // Dash ready flash — brief HUD hint
+  if (dashCooldown === 1) {
+    showWarning('DASH READY!');
+  }
+
   // Rampage countdown
   if (rampageTimer > 0) {
     rampageTimer--;
@@ -1143,6 +1180,25 @@ function draw() {
     const alpha = Math.min(1, o.life/30);
     ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = '#f0c040'; ctx.shadowBlur = 8; ctx.shadowColor = '#f0c040';
     ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  }
+
+  // ── Dash trail ──────────────────────────────────────────────────────────────
+  for (let p of dashTrail) {
+    const alpha = (p.life / p.maxLife) * (p.isGhost ? 0.45 : 0.7);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (p.isGhost) {
+      // Ghost silhouette of player shape
+      drawPolygon(ctx, p.x, p.y, player.sides, p.r,
+        player.angle + Math.PI/2 - Math.PI/player.sides,
+        p.color + '99', p.color, 1.5);
+    } else {
+      // Spark particle
+      ctx.fillStyle = p.color;
+      ctx.shadowBlur = 6; ctx.shadowColor = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
   }
 
   for (let p of particles) {
@@ -1251,6 +1307,30 @@ function draw() {
       ctx.fillStyle = i < player.hp ? pcolor : '#333'; ctx.fill();
     }
     drawShield();
+
+    // ── Dash cooldown ring around player ───────────────────────────────────
+    if (dashCooldown > 0 || dashTimer > 0) {
+      const MAX_CD = 300;
+      const progress = dashTimer > 0 ? 1 : 1 - (dashCooldown / MAX_CD);
+      const ready = dashCooldown === 0 && dashTimer === 0;
+      ctx.save();
+      // Background ring
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.r + 9, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // Progress arc
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.r + 9,
+        -Math.PI/2, -Math.PI/2 + Math.PI * 2 * progress);
+      ctx.strokeStyle = dashTimer > 0 ? '#00ffff' : '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = dashTimer > 0 ? 12 : 0;
+      ctx.shadowColor = '#00ffff';
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   if (waveTimer > 0 && waveTimer < 60) {
@@ -1396,13 +1476,12 @@ function openUpgradeCategory(cat) {
   document.getElementById('upgrade-category-grid').style.display = 'none';
   document.getElementById('upgrade-panel').style.display = 'block';
   const titles = {
-    shape:   '◈ SHAPE & WEAPONS',
     stats:   '⚡ PLAYER STATS',
     weapon:  '🔫 WEAPON MODS',
     passive: '✦ PASSIVES',
     reset:   '↺ RESET UPGRADES',
   };
-  const colors = { shape:'#ff8888', stats:'#88aaff', weapon:'#44ff88', passive:'#cc88ff', reset:'#aaaaaa' };
+  const colors = { stats:'#88aaff', weapon:'#44ff88', passive:'#cc88ff', reset:'#aaaaaa' };
   const titleEl = document.getElementById('upgrade-panel-title');
   titleEl.textContent = titles[cat];
   titleEl.style.color = colors[cat];
@@ -1480,53 +1559,8 @@ function buildUpgradeOptions(cat) {
   container.innerHTML = '';
   const xp = bankedXP;
   const mult = player.weaponCostMult || 1;
-  const allShapes = [...SHAPES, ...SHAPES_SECRET];
-  const shapeIdx = allShapes.indexOf(player.shape);
-  const isHexagon = player.shape === 'hexagon';
-  const isHeptagon = player.shape === 'heptagon';
-  const waveReached = highestWave || wave;
 
-  if (cat === 'shape') {
-    // ── Shape evolution ──────────────────────────────────────────────────────
-    if (shapeIdx < SHAPES.length - 1) {
-      const cost = SHAPE_EVOLVE_COSTS[shapeIdx]; const nextShape = SHAPES[shapeIdx + 1]; const canAfford = xp >= cost;
-      container.appendChild(makeUpgradeBtn('EVOLVE TO '+nextShape.toUpperCase(), cost, canAfford,
-        ()=>{ bankedXP -= cost; player.shape = nextShape; player.sides = SHAPE_SIDES[nextShape]; while(player.weapons.length < player.sides) player.weapons.push(null); buildUpgradeOptions(); refreshUpgradePreview(); },
-        'GAIN '+(SHAPE_SIDES[nextShape]-player.sides)+' NEW WEAPON SLOT'+(SHAPE_SIDES[nextShape]-player.sides>1?'S':'') ));
-    }
-    if (isHexagon && waveReached >= 10) {
-      const cost = SHAPE_EVOLVE_COSTS[4]; const canAfford = xp >= cost;
-      const btn = makeUpgradeBtn('★ SECRET: HEPTAGON', cost, canAfford,
-        ()=>{ bankedXP -= cost; player.shape = 'heptagon'; player.sides = 7; while(player.weapons.length < 7) player.weapons.push(null); buildUpgradeOptions(); refreshUpgradePreview(); },
-        'UNLOCK SECRET 7-SIDED SHAPE');
-      btn.style.borderColor = '#ff4af'; btn.style.color = '#ff4af'; container.appendChild(btn);
-    }
-    if (isHeptagon && waveReached >= 20) {
-      const cost = SHAPE_EVOLVE_COSTS[4]; const canAfford = xp >= cost;
-      const btn = makeUpgradeBtn('★ SECRET: OCTAGON', cost, canAfford,
-        ()=>{ bankedXP -= cost; player.shape = 'octagon'; player.sides = 8; while(player.weapons.length < 8) player.weapons.push(null); buildUpgradeOptions(); refreshUpgradePreview(); },
-        'UNLOCK SECRET 8-SIDED SHAPE');
-      btn.style.borderColor = '#ffd700'; btn.style.color = '#ffd700'; container.appendChild(btn);
-    }
-    // ── Add guns/spikes to empty sides ───────────────────────────────────────
-    for (let i=0; i<player.sides; i++) {
-      if (!player.weapons[i]) {
-        const sideName = getSideName(i, player.sides);
-        const gunCost = Math.round(BASE_GUN_COST * mult); const spikeCost = Math.round(BASE_SPIKE_COST * mult);
-        container.appendChild(makeUpgradeBtn('ADD BLASTER — '+sideName, gunCost, xp >= gunCost,
-          ()=>{ bankedXP -= gunCost; player.weapons[i]='gun'; player.weaponCostMult=(player.weaponCostMult||1)*2; buildUpgradeOptions(); refreshUpgradePreview(); },
-          'AUTO-FIRING GUN ON '+sideName+' SIDE'));
-        container.appendChild(makeUpgradeBtn('ADD SPIKE — '+sideName, spikeCost, xp >= spikeCost,
-          ()=>{ bankedXP -= spikeCost; player.weapons[i]='spike'; player.weaponCostMult=(player.weaponCostMult||1)*2; buildUpgradeOptions(); refreshUpgradePreview(); },
-          'CONTACT KILL ON '+sideName+' SIDE'));
-      }
-    }
-    if (container.children.length === 0) {
-      container.innerHTML = '<div style="color:#555;font-size:0.35rem;text-align:center;padding:1rem;">ALL SHAPE UPGRADES PURCHASED</div>';
-    }
-  }
-
-  else if (cat === 'stats') {
+  if (cat === 'stats') {
     // ── Player stat upgrades ─────────────────────────────────────────────────
     if (!player.upgrades) player.upgrades = {};
     const statUpgrades = [
@@ -2037,10 +2071,16 @@ function placeJoystickAt(x, y) {
 
 jZone.addEventListener('touchstart', e => {
   e.preventDefault();
+  if (state === 'onboarding') { obAdvance(); return; }
+
+  // Second finger tap = dash
+  if (e.touches.length >= 2) {
+    activateDash();
+    return;
+  }
+
   const t = e.touches[0];
   const pos = getContainerPos(t.clientX, t.clientY);
-  // If onboarding is active, tap advances it
-  if (state === 'onboarding') { obAdvance(); return; }
   joystick.active = true; joystick.startX = pos.x; joystick.startY = pos.y;
   joystick.dx = 0; joystick.dy = 0;
   placeJoystickAt(pos.x, pos.y);
@@ -2201,12 +2241,41 @@ function sfxSpikeKill() { playTone(400,'sine',0.05,0.5); playTone(800,'sine',0.0
 function sfxPlayerHit() { playNoise(0.15,0.3); playTone(200,'sawtooth',0.2,0.2); }
 function sfxXPDrain() { playTone(300,'sine',0.1,0.15); playTone(200,'sine',0.15,0.1); }
 function sfxRampage() {
-  // Dramatic rising alarm
   playTone(200, 'sawtooth', 0.15, 0.4);
   setTimeout(()=>playTone(300, 'sawtooth', 0.15, 0.4), 150);
   setTimeout(()=>playTone(400, 'sawtooth', 0.15, 0.4), 300);
   setTimeout(()=>playTone(600, 'square', 0.3, 0.5), 500);
   setTimeout(()=>playNoise(0.3, 0.5), 550);
+}
+
+function sfxDash() {
+  playTone(400, 'sine', 0.08, 0.3);
+  playTone(600, 'sine', 0.06, 0.25);
+  playNoise(0.05, 0.15);
+}
+
+function activateDash() {
+  if (dashCooldown > 0 || dashTimer > 0 || state !== 'playing') return;
+  // Lock dash direction to current facing angle
+  dashVx = Math.cos(player.angle);
+  dashVy = Math.sin(player.angle);
+  dashTimer = 10; // ~0.16 seconds of actual movement (fast)
+  dashCooldown = 300; // 5 seconds at 60fps
+  sfxDash();
+  // Spawn initial burst particles in dash direction
+  for (let i = 0; i < 8; i++) {
+    const spread = (Math.random() - 0.5) * 0.6;
+    const speed = 3 + Math.random() * 3;
+    const a = player.angle + spread;
+    dashTrail.push({
+      x: player.x, y: player.y,
+      vx: -Math.cos(a) * speed, vy: -Math.sin(a) * speed,
+      life: 20 + Math.random() * 15,
+      maxLife: 35,
+      r: 4 + Math.random() * 4,
+      color: SHAPE_COLORS[player.shape],
+    });
+  }
 }
 
 // ─── BG MUSIC ────────────────────────────────────────────────────────────────
