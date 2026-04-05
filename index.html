@@ -2101,9 +2101,18 @@ jZone.addEventListener('touchmove', e => {
 
 jZone.addEventListener('touchend', e => {
   e.preventDefault();
-  joystick.active = false; joystick.dx = 0; joystick.dy = 0;
+
+  // If at least one finger is still touching, DO NOT hide joystick
+  if (e.touches.length > 0) {
+    return;
+  }
+
+  // Only hide joystick if ALL fingers are lifted
+  joystick.active = false;
+  joystick.dx = 0;
+  joystick.dy = 0;
   jBase.style.display = 'none';
-}, {passive:false});
+}, { passive:false });
 
 jZone.addEventListener('mousedown', e => {
   if (state === 'onboarding') { obAdvance(); return; }
