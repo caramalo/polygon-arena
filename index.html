@@ -264,28 +264,28 @@
     <canvas id="upgrade-preview" width="100" height="100" class="shape-preview" style="margin:0.3rem 0 0.6rem;flex-shrink:0;"></canvas>
 
     <!-- Scrollable middle area: category grid OR detail panel -->
-    <div id="upgrade-scroll-area" style="flex:1;overflow-y:auto;width:88%;max-width:340px;min-height:0;">
+    <div id="upgrade-scroll-area" style="flex:1;overflow-y:auto;width:96%;max-width:none;min-height:0;">
 
       <!-- Category grid view -->
       <div id="upgrade-category-grid" style="display:grid;grid-template-columns:1fr;gap:0.4rem;padding-bottom:0.4rem;">
 
-        <div class="cat-box" onclick="openUpgradeCategory('stats')" style="border:1px solid #44a;background:rgba(40,40,160,0.18);padding:0.6rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
+        <div class="cat-box" onclick="openUpgradeCategory('stats')" style="border:1px solid #44a;background:rgba(40,40,160,0.18);padding:0.9rem 0.6rem;border-radius:4px;cursor:pointer;text-align:center;">
           <div style="font-size:1.1rem;margin-bottom:0.2rem;">⚡</div>
           <div style="font-size:0.34rem;letter-spacing:0.1em;color:#88aaff;">PLAYER STATS</div>
           <div style="font-size:0.28rem;color:#4466aa;margin-top:0.1rem;">HP, SPEED, XP</div>
         </div>
-        <div class="cat-box" onclick="openUpgradeCategory('weapon')" style="border:1px solid #2a4;background:rgba(20,120,40,0.18);padding:0.6rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
+        <div class="cat-box" onclick="openUpgradeCategory('weapon')" style="border:1px solid #2a4;background:rgba(20,120,40,0.18);padding:0.9rem 0.6rem;border-radius:4px;cursor:pointer;text-align:center;">
           <div style="font-size:1.1rem;margin-bottom:0.2rem;">🔫</div>
           <div style="font-size:0.34rem;letter-spacing:0.1em;color:#44ff88;">WEAPON MODS</div>
           <div style="font-size:0.28rem;color:#228844;margin-top:0.1rem;">PIERCE, SPREAD...</div>
         </div>
-        <div class="cat-box" onclick="openUpgradeCategory('passive')" style="border:1px solid #84a;background:rgba(100,20,160,0.18);padding:0.6rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
+        <div class="cat-box" onclick="openUpgradeCategory('passive')" style="border:1px solid #84a;background:rgba(100,20,160,0.18);padding:0.9rem 0.6rem;border-radius:4px;cursor:pointer;text-align:center;">
           <div style="font-size:1.1rem;margin-bottom:0.2rem;">✦</div>
           <div style="font-size:0.34rem;letter-spacing:0.1em;color:#cc88ff;">PASSIVES</div>
           <div style="font-size:0.28rem;color:#7744aa;margin-top:0.1rem;">THORNS, REGEN...</div>
         </div>
         <!-- Full-width reset box -->
-        <div class="cat-box" onclick="confirmResetUpgrades()" style="grid-column:1/-1;border:1px solid #666;background:rgba(80,80,80,0.15);padding:0.5rem 0.4rem;border-radius:4px;cursor:pointer;text-align:center;">
+        <div class="cat-box" onclick="confirmResetUpgrades()" style="grid-column:1/-1;border:1px solid #666;background:rgba(80,80,80,0.15);padding:0.9rem 0.6rem;border-radius:4px;cursor:pointer;text-align:center;">
           <div style="font-size:1rem;margin-bottom:0.15rem;">↺</div>
           <div style="font-size:0.34rem;letter-spacing:0.1em;color:#aaa;">RESET UPGRADES</div>
           <div style="font-size:0.28rem;color:#666;margin-top:0.1rem;">REFUND ALL SPENT XP</div>
@@ -304,7 +304,7 @@
     </div>
 
     <!-- Action buttons — pinned at bottom, never scroll away -->
-    <div style="flex-shrink:0;display:flex;flex-direction:column;gap:0.3rem;width:88%;max-width:340px;padding:0.5rem 0 0.6rem;">
+    <div style="flex-shrink:0;display:flex;flex-direction:column;gap:0.3rem;width:96%;max-width:none;padding:0.5rem 0 0.6rem;">
       <button class="btn" id="xp-ad-btn" onclick="watchAdForXP()" style="border-color:#22cc44;color:#22cc44;font-size:0.58rem;padding:0.5em 1em;letter-spacing:0.1em;line-height:1.2;">🎥 +300 XP</button>
       <button class="btn" id="revive-ad-btn" onclick="watchAdAndRevive()" style="border-color:#ff4466;color:#ff4466;font-size:0.58rem;padding:0.5em 1em;letter-spacing:0.1em;line-height:1.2;">🎥 REVIVE &amp; CONTINUE</button>
       <button class="btn accent" id="respawn-btn" onclick="continueGame()" style="font-size:0.58rem;padding:0.5em 1em;letter-spacing:0.1em;line-height:1.2;">▶ RESPAWN</button>
