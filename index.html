@@ -424,6 +424,9 @@ function createPlayer() {
     regen: false,
     bulletShield: false,
     salvage: false,
+    dashCharges: 1,
+    dashChargesLeft: 1,
+    dashArmor: false,
   };
 }
 
@@ -800,8 +803,10 @@ function update(dt) {
       isGhost: true,
     });
     dashTimer--;
-    // Full invincibility during dash
-    player.invincible = Math.max(player.invincible, dashTimer + 2);
+    // dashArmor upgrade: full invincibility during dash; otherwise brief i-frames only
+    if (player.dashArmor) {
+      player.invincible = Math.max(player.invincible, dashTimer + 2);
+    }
   } else if (joystick.active && (joystick.dx !== 0 || joystick.dy !== 0)) {
     const len = Math.sqrt(joystick.dx**2+joystick.dy**2);
     const nx = joystick.dx/len; const ny = joystick.dy/len;
@@ -1521,18 +1526,19 @@ function calcUpgradeRefund() {
   const statCosts = { maxHp:600, speed:550, magnet:575, overclock:650, xpBoost:700, armor:800 };
   const weaponCosts = { ricochet:525, piercing:750, spread:850, bigbullet:600 };
   const passiveCosts = { thorns:625, regen:900, bShield:700, salvage:550 };
+  const dashCosts = { dashCD:500, chainDash:750, dashArmor:900 };
   let total = 0;
   for (const [key, val] of Object.entries(u)) {
     if (statCosts[key])   total += statCosts[key] * (typeof val === 'number' ? val : 1);
     if (weaponCosts[key]) total += weaponCosts[key];
     if (passiveCosts[key])total += passiveCosts[key];
+    if (dashCosts[key])   total += dashCosts[key] * (typeof val === 'number' ? val : 1);
   }
   return total;
 }
 
 function resetAllUpgrades() {
   const refund = calcUpgradeRefund();
-  // Clear all upgrade flags
   player.upgrades = {};
   player.baseSpeed = PLAYER_SPEED;
   player.speed = PLAYER_SPEED;
@@ -1549,10 +1555,13 @@ function resetAllUpgrades() {
   player.regen = false;
   player.bulletShield = false;
   player.salvage = false;
-  // Refund HP upgrades — reduce maxHp back to base (but keep current hp safe)
+  player.dashCharges = 1;
+  player.dashChargesLeft = 1;
+  player.dashArmor = false;
+
   player.maxHp = 3;
   player.hp = Math.min(player.hp, player.maxHp);
-  // Refund XP
+
   bankedXP += refund;
   player.xp += refund;
   document.getElementById('upgrade-xp').textContent = Math.floor(bankedXP);
@@ -1567,37 +1576,55 @@ function buildUpgradeOptions(cat) {
   const xp = bankedXP;
   const mult = player.weaponCostMult || 1;
 
-  if (cat === 'stats') {
-    // ── Player stat upgrades ─────────────────────────────────────────────────
-    if (!player.upgrades) player.upgrades = {};
-    const statUpgrades = [
-      { key:'maxHp',    label:'MAX HP UP',        sub:'+1 MAXIMUM HEALTH',        cost:600,  apply: ()=>{ player.maxHp++; player.hp++; } },
-      { key:'speed',    label:'SPEED UP',          sub:'+10% MOVE SPEED (PERM)',   cost:550,  apply: ()=>{ player.baseSpeed = (player.baseSpeed||PLAYER_SPEED)*1.1; player.speed = player.baseSpeed; } },
-      { key:'magnet',   label:'XP MAGNET',         sub:'2x ORB ATTRACT RANGE',     cost:575,  apply: ()=>{ player.magnetRange = (player.magnetRange||80)*2; } },
-      { key:'overclock',label:'OVERCLOCK',         sub:'-15% SHOOT COOLDOWN',      cost:650,  apply: ()=>{ player.overclockStacks = (player.overclockStacks||0)+1; } },
-      { key:'xpBoost',  label:'XP BOOST',          sub:'GAIN 45% INSTEAD OF 30%',  cost:700,  apply: ()=>{ player.xpBoost = true; } },
-      { key:'armor',    label:'ARMOR',             sub:'BLOCK FIRST HIT EACH WAVE',cost:800,  apply: ()=>{ player.armor = true; player.armorActive = true; } },
-    ];
-    for (const u of statUpgrades) {
-      const bought = player.upgrades[u.key] || 0;
-      const maxBuys = (u.key === 'maxHp' || u.key === 'speed') ? 3 : 1;
-      if (bought >= maxBuys) continue;
-      const canAfford = xp >= u.cost;
-      const label = u.label + (maxBuys>1 ? ' ('+(bought+1)+'/'+maxBuys+')' : '');
-      const btn = makeUpgradeBtn(label, u.cost, canAfford, ()=>{
-        bankedXP -= u.cost;
-        player.upgrades[u.key] = (player.upgrades[u.key]||0)+1;
-        u.apply();
-        buildUpgradeOptions();
-        refreshUpgradePreview();
-      }, u.sub);
-      btn.style.borderColor = '#4488ff';
-      container.appendChild(btn);
+if (cat === 'stats') {
+  if (!player.upgrades) player.upgrades = {};
+  const dashCDLabels = ['DASH CD -1S (4S)', 'DASH CD -1S (3S)', 'DASH CD -1S (2S)', 'DASH CD -1S (1S)'];
+  const dashCDSubs  = ['COOLDOWN NOW 4 SECONDS', 'COOLDOWN NOW 3 SECONDS', 'COOLDOWN NOW 2 SECONDS', 'COOLDOWN NOW 1 SECOND'];
+
+  const statUpgrades = [
+    { key:'maxHp',     label:'MAX HP UP',        sub:'+1 MAXIMUM HEALTH',         cost:600, maxBuys:3, apply: ()=>{ player.maxHp++; player.hp++; } },
+    { key:'speed',     label:'SPEED UP',         sub:'+10% MOVE SPEED (PERM)',    cost:550, maxBuys:3, apply: ()=>{ player.baseSpeed = (player.baseSpeed||PLAYER_SPEED)*1.1; player.speed = player.baseSpeed; } },
+    { key:'magnet',    label:'XP MAGNET',        sub:'2x ORB ATTRACT RANGE',      cost:575, maxBuys:1, apply: ()=>{ player.magnetRange = (player.magnetRange||80)*2; } },
+    { key:'overclock', label:'OVERCLOCK',        sub:'-15% SHOOT COOLDOWN',       cost:650, maxBuys:1, apply: ()=>{ player.overclockStacks = (player.overclockStacks||0)+1; } },
+    { key:'xpBoost',   label:'XP BOOST',         sub:'GAIN 45% INSTEAD OF 30%',   cost:700, maxBuys:1, apply: ()=>{ player.xpBoost = true; } },
+    { key:'armor',     label:'ARMOR',            sub:'BLOCK FIRST HIT EACH WAVE', cost:800, maxBuys:1, apply: ()=>{ player.armor = true; player.armorActive = true; } },
+
+    { key:'dashCD',    label:'DASH RECHARGE',    sub:'',                           cost:500, maxBuys:4, apply: ()=>{} },
+    { key:'chainDash', label:'CHAIN DASH',       sub:'DASH TWICE BEFORE COOLDOWN', cost:750, maxBuys:1, apply: ()=>{ player.dashCharges = 2; player.dashChargesLeft = 2; } },
+    { key:'dashArmor', label:'DASH ARMOR',       sub:'INVULNERABLE WHILE DASHING', cost:900, maxBuys:1, apply: ()=>{ player.dashArmor = true; } },
+  ];
+
+  for (const u of statUpgrades) {
+    const bought = player.upgrades[u.key] || 0;
+    const maxBuys = u.maxBuys || 1;
+    if (bought >= maxBuys) continue;
+    const canAfford = xp >= u.cost;
+
+    let label = u.label;
+    let sub = u.sub;
+    if (u.key === 'dashCD') {
+      label = dashCDLabels[bought];
+      sub = dashCDSubs[bought];
     }
-    if (container.children.length === 0) {
-      container.innerHTML = '<div style="color:#555;font-size:0.35rem;text-align:center;padding:1rem;">ALL STAT UPGRADES PURCHASED</div>';
-    }
+
+    if (maxBuys > 1) label += ' (' + (bought+1) + '/' + maxBuys + ')';
+
+    const btn = makeUpgradeBtn(label, u.cost, canAfford, ()=>{
+      bankedXP -= u.cost;
+      player.upgrades[u.key] = (player.upgrades[u.key]||0)+1;
+      u.apply();
+      buildUpgradeOptions();
+      refreshUpgradePreview();
+    }, sub);
+
+    btn.style.borderColor = '#4488ff';
+    container.appendChild(btn);
   }
+
+  if (container.children.length === 0) {
+    container.innerHTML = '<div style="color:#555;font-size:0.35rem;text-align:center;padding:1rem;">ALL STAT UPGRADES PURCHASED</div>';
+  }
+}
 
   else if (cat === 'weapon') {
     // ── Weapon mod upgrades ──────────────────────────────────────────────────
@@ -2035,6 +2062,8 @@ function continueGame() {
   if (savedUpgrades2.regen) player.regen = true;
   if (savedUpgrades2.bShield) player.bulletShield = true;
   if (savedUpgrades2.salvage) player.salvage = true;
+  if (savedUpgrades2.chainDash) { player.dashCharges = 2; player.dashChargesLeft = 2; }
+  if (savedUpgrades2.dashArmor) player.dashArmor = true;
   player.hp = player.maxHp; player.invincible = 120;
   spawnWave();
   state = 'playing';
@@ -2271,14 +2300,27 @@ function sfxDash() {
 }
 
 function activateDash() {
-  if (dashCooldown > 0 || dashTimer > 0 || state !== 'playing') return;
-  // Lock dash direction to current facing angle
+  if (dashTimer > 0 || state !== 'playing') return;
+
+  if (player.dashChargesLeft <= 0 && dashCooldown > 0) return;
+
+  if (dashCooldown === 0) player.dashChargesLeft = player.dashCharges;
+  if (player.dashChargesLeft <= 0) return;
+
   dashVx = Math.cos(player.angle);
   dashVy = Math.sin(player.angle);
-  dashTimer = 10; // ~0.16 seconds of actual movement (fast)
-  dashCooldown = 300; // 5 seconds at 60fps
+  dashTimer = 10;
+
+  player.dashChargesLeft--;
+
+  if (player.dashChargesLeft <= 0) {
+    const cdFrames = [300, 240, 180, 120, 60];
+    const lvl = player.upgrades.dashCD || 0;
+    dashCooldown = cdFrames[Math.min(lvl, cdFrames.length - 1)];
+  }
+
   sfxDash();
-  // Spawn initial burst particles in dash direction
+
   for (let i = 0; i < 8; i++) {
     const spread = (Math.random() - 0.5) * 0.6;
     const speed = 3 + Math.random() * 3;
