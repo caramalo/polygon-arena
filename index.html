@@ -2162,12 +2162,12 @@ function startOnboarding() {
 
 function obShowStep(step) {
   // Hide all steps
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const el = document.getElementById('ob-step-' + i);
     if (el) el.style.display = 'none';
   }
   // Update dots
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const dot = document.getElementById('ob-dot-' + i);
     if (dot) dot.className = 'ob-dot' + (i === step ? ' active' : '');
   }
@@ -2189,7 +2189,7 @@ function obShowStep(step) {
 function obAdvance() {
   clearTimeout(obTimer);
   obStep++;
-  if (obStep >= 4) {
+  if (obStep >= 5) {
     obSkip();
   } else {
     obShowStep(obStep);
