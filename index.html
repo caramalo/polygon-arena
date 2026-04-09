@@ -613,6 +613,7 @@ function initGame() {
 }
 
 function spawnWave() {
+  updateMusicBPM();
   powerUpSpawnCount = 0;
   const puCount = 4 + Math.floor(Math.random() * 3);
   for (let i = 0; i < puCount; i++) {
@@ -2346,49 +2347,162 @@ function activateDash() {
 // ─── BG MUSIC ────────────────────────────────────────────────────────────────
 let musicNodes = [];
 let musicPlaying = false;
-const MUSIC_BPM = 128;
-const BEAT = 60 / MUSIC_BPM;
+let currentBPM = 85;
+let musicStep = 0;
+let musicTimeout = null;
+
+function getBPMForWave(w) {
+  // Starts at 85 BPM, increases by ~3 BPM per wave, caps at 180
+  return Math.min(180, 85 + (w * 3));
+}
 
 function startBgMusic() {
   if (musicPlaying) return;
   musicPlaying = true;
   ensureAudio();
+  currentBPM = getBPMForWave(wave || 0);
   scheduleMusicLoop();
 }
 
 function stopBgMusic() {
   musicPlaying = false;
+  clearTimeout(musicTimeout);
   musicNodes.forEach(n => { try { n.stop(); } catch(e){} });
   musicNodes = [];
 }
 
-const BASS_NOTES = [55, 55, 73, 82, 55, 55, 73, 98];
-const LEAD_NOTES = [220, 0, 330, 0, 440, 330, 0, 262];
-let musicStep = 0;
-let musicTimeout = null;
+function updateMusicBPM() {
+  // Called each time wave increments — tempo update takes effect on next beat
+  currentBPM = getBPMForWave(wave || 0);
+}
+
+// Epic multi-layer pattern — 16 steps (2 bars of 8)
+const BASS_PATTERN = [
+  110, 0, 110, 0,   82, 0,  82, 0,
+   98, 0,  98, 0,   73, 0, 110, 0
+];
+const KICK_PATTERN = [
+  1, 0, 0, 0,  1, 0, 0, 0,
+  1, 0, 0, 0,  1, 0, 1, 0
+];
+const SNARE_PATTERN = [
+  0, 0, 1, 0,  0, 0, 1, 0,
+  0, 0, 1, 0,  0, 0, 1, 0
+];
+const LEAD_PATTERN = [
+  440, 0, 330, 0,  262, 0, 330, 440,
+  392, 0, 330, 0,  294, 0,   0, 392
+];
+const ARPEGGIO_PATTERN = [
+  220, 277, 330, 415,  220, 277, 330, 415,
+  196, 247, 294, 370,  196, 247, 294, 370
+];
 
 function scheduleMusicLoop() {
   if (!musicPlaying) return;
-  const step = musicStep % BASS_NOTES.length;
-  if (BASS_NOTES[step] > 0) {
-    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.type = 'sawtooth'; osc.frequency.value = BASS_NOTES[step];
-    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + BEAT * 0.8);
-    osc.start(); osc.stop(audioCtx.currentTime + BEAT);
+
+  const BEAT = 60 / currentBPM;
+  const step = musicStep % BASS_PATTERN.length;
+  const now = audioCtx.currentTime;
+
+  // ── Bass (sawtooth, deep) ──────────────────────────────────────────────────
+  if (BASS_PATTERN[step] > 0) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 300 + (wave || 0) * 15;
+    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.value = BASS_PATTERN[step];
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + BEAT * 0.9);
+    osc.start(now); osc.stop(now + BEAT);
     musicNodes.push(osc);
   }
-  if (LEAD_NOTES[step] > 0) {
-    const osc2 = audioCtx.createOscillator(); const gain2 = audioCtx.createGain();
-    osc2.connect(gain2); gain2.connect(audioCtx.destination);
-    osc2.type = 'square'; osc2.frequency.value = LEAD_NOTES[step];
-    gain2.gain.setValueAtTime(0.04, audioCtx.currentTime);
-    gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + BEAT * 0.5);
-    osc2.start(); osc2.stop(audioCtx.currentTime + BEAT);
-    musicNodes.push(osc2);
+
+  // ── Kick drum (sine thump) ─────────────────────────────────────────────────
+  if (KICK_PATTERN[step]) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(160, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+    gain.gain.setValueAtTime(0.55, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    osc.start(now); osc.stop(now + 0.2);
+    musicNodes.push(osc);
   }
-  playNoise(0.04, 0.04);
+
+  // ── Snare (noise burst) ────────────────────────────────────────────────────
+  if (SNARE_PATTERN[step]) {
+    const bufSize = Math.floor(audioCtx.sampleRate * 0.12);
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'highpass'; filter.frequency.value = 1200;
+    src.buffer = buf;
+    src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    src.start(now); src.stop(now + 0.14);
+    musicNodes.push(src);
+  }
+
+  // ── Hi-hat (every step, quieter on off-beats) ─────────────────────────────
+  {
+    const bufSize = Math.floor(audioCtx.sampleRate * 0.04);
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'highpass'; filter.frequency.value = 8000;
+    src.buffer = buf;
+    src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    const vol = (step % 2 === 0) ? 0.10 : 0.05;
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+    src.start(now); src.stop(now + 0.05);
+    musicNodes.push(src);
+  }
+
+  // ── Lead melody (square wave) ──────────────────────────────────────────────
+  if (LEAD_PATTERN[step] > 0) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'square';
+    osc.frequency.value = LEAD_PATTERN[step];
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + BEAT * 0.7);
+    osc.start(now); osc.stop(now + BEAT);
+    musicNodes.push(osc);
+  }
+
+  // ── Arpeggio (triangle, high octave) ──────────────────────────────────────
+  if (ARPEGGIO_PATTERN[step] > 0) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'triangle';
+    osc.frequency.value = ARPEGGIO_PATTERN[step] * 2;
+    gain.gain.setValueAtTime(0.04, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + BEAT * 0.4);
+    osc.start(now); osc.stop(now + BEAT * 0.5);
+    musicNodes.push(osc);
+  }
+
+  // Trim dead nodes to avoid memory buildup
+  musicNodes = musicNodes.filter(n => {
+    try { return n.context && n.context.state !== 'closed'; } catch(e) { return false; }
+  });
+
   musicStep++;
   musicTimeout = setTimeout(scheduleMusicLoop, BEAT * 1000);
 }
