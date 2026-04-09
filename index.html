@@ -2302,9 +2302,15 @@ function sfxDash() {
 function activateDash() {
   if (dashTimer > 0 || state !== 'playing') return;
 
-  if (player.dashChargesLeft <= 0 && dashCooldown > 0) return;
+  // If cooldown is active and no charges left, block the dash
+  if (dashCooldown > 0 && player.dashChargesLeft <= 0) return;
 
-  if (dashCooldown === 0) player.dashChargesLeft = player.dashCharges;
+  // If cooldown just finished, refill charges
+  if (dashCooldown === 0 && player.dashChargesLeft <= 0) {
+    player.dashChargesLeft = player.dashCharges;
+  }
+
+  // Still no charges (e.g. freshly created player edge case)
   if (player.dashChargesLeft <= 0) return;
 
   dashVx = Math.cos(player.angle);
@@ -2313,6 +2319,7 @@ function activateDash() {
 
   player.dashChargesLeft--;
 
+  // Only start cooldown once ALL charges are spent
   if (player.dashChargesLeft <= 0) {
     const cdFrames = [300, 240, 180, 120, 60];
     const lvl = player.upgrades.dashCD || 0;
